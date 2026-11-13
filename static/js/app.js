@@ -102,7 +102,7 @@ function syncUserHeaderAndComposer() {
     feedAvatar.textContent = currentUser.initials || 'ST';
   }
   if (feedComposerInput) {
-    feedComposerInput.placeholder = `What's on your mind, ${getFirstName(currentUser)}?`;
+    feedComposerInput.placeholder = `Broadcast What You Need, ${getFirstName(currentUser)}?`;
   }
 }
 
@@ -329,8 +329,8 @@ function renderCategoryDropdownOptions(prefix, query = '') {
         <div class="combobox-group">
           <div class="combobox-group-title">${escapeHtml(groupTitle)}</div>
           ${matchingCats.map(cat => {
-            const isSelected = cat === selectedValue;
-            return `
+        const isSelected = cat === selectedValue;
+        return `
               <button
                 type="button"
                 class="combobox-option ${isSelected ? 'selected' : ''}"
@@ -340,7 +340,7 @@ function renderCategoryDropdownOptions(prefix, query = '') {
                 ${isSelected ? '<span class="combobox-check">&#10003;</span>' : ''}
               </button>
             `;
-          }).join('')}
+      }).join('')}
         </div>
       `;
     }
@@ -775,9 +775,9 @@ async function loadFeedWorkspace() {
             </div>
             <div>
               ${isMine
-                ? `<span class="badge badge-neutral">Your Active Broadcast</span>`
-                : `<button type="button" class="btn-primary btn-sm" onclick="openFeedRespondModal(${post.id})">I Have This</button>`
-              }
+          ? `<span class="badge badge-neutral">Your Active Broadcast</span>`
+          : `<button type="button" class="btn-primary btn-sm" onclick="openFeedRespondModal(${post.id})">I Have This</button>`
+        }
             </div>
           </div>
         </article>
@@ -1226,8 +1226,8 @@ function renderRequestsStack(containerId, list, mode) {
       <div class="empty-state">
         <h3>No ${mode === 'outgoing' ? 'outgoing' : 'incoming'} requests yet</h3>
         <p>${mode === 'outgoing'
-          ? 'Resources you request from Browse Exchange or broadcast on the Student Request Feed will appear here.'
-          : 'When peers request your listings or when you respond to a Campus Feed broadcast, they will appear here.'}</p>
+        ? 'Resources you request from Browse Exchange or broadcast on the Student Request Feed will appear here.'
+        : 'When peers request your listings or when you respond to a Campus Feed broadcast, they will appear here.'}</p>
       </div>
     `;
     return;
@@ -1440,8 +1440,8 @@ function renderRequestDetails(req) {
             ${messages.length === 0 ? `
               <p class="text-muted" style="text-align: center; margin: auto;">No messages yet. Say hello to coordinate pickup!</p>
             ` : messages.map(msg => {
-              const isMine = msg.sender_id === currentUser.id;
-              return `
+    const isMine = msg.sender_id === currentUser.id;
+    return `
                 <div class="chat-bubble-row ${isMine ? 'mine' : 'theirs'}">
                   <div class="chat-bubble">
                     <div class="chat-sender">${escapeHtml(msg.sender_name)}</div>
@@ -1450,7 +1450,7 @@ function renderRequestDetails(req) {
                   </div>
                 </div>
               `;
-            }).join('')}
+  }).join('')}
           </div>
 
           ${(req.status !== 'Cancelled' && req.status !== 'Declined' && req.status !== 'Handover') ? `
@@ -1820,12 +1820,12 @@ function renderAdminDoughnutChart(breakdown) {
 
   const circles = total > 0
     ? slices.map(s => {
-        if (s.count <= 0) return '';
-        const dash = (s.count / total) * circumference;
-        const gap = circumference - dash;
-        const currentOffset = -offset;
-        offset += dash;
-        return `
+      if (s.count <= 0) return '';
+      const dash = (s.count / total) * circumference;
+      const gap = circumference - dash;
+      const currentOffset = -offset;
+      offset += dash;
+      return `
           <circle
             cx="85"
             cy="85"
@@ -1838,7 +1838,7 @@ function renderAdminDoughnutChart(breakdown) {
             transform="rotate(-90 85 85)"
           />
         `;
-      }).join('')
+    }).join('')
     : `<circle cx="85" cy="85" r="${radius}" fill="transparent" stroke="#E5E7EB" stroke-width="24" />`;
 
   container.innerHTML = `
@@ -1852,8 +1852,8 @@ function renderAdminDoughnutChart(breakdown) {
       </div>
       <div class="doughnut-legend">
         ${slices.map(s => {
-          const pct = total > 0 ? Math.round((s.count / total) * 100) : 0;
-          return `
+    const pct = total > 0 ? Math.round((s.count / total) * 100) : 0;
+    return `
             <div class="doughnut-legend-item">
               <span class="doughnut-legend-swatch" style="background: ${s.color};"></span>
               <div class="doughnut-legend-text">
@@ -1862,7 +1862,7 @@ function renderAdminDoughnutChart(breakdown) {
               </div>
             </div>
           `;
-        }).join('')}
+  }).join('')}
       </div>
     </div>
   `;
