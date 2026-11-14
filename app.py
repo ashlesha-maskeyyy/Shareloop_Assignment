@@ -18,11 +18,15 @@ import os
 import re
 import uuid
 import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta, date
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from sqlalchemy import text
 from werkzeug.utils import secure_filename
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from models import (
     db,
     User,
@@ -42,6 +46,8 @@ except ImportError:
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shareloop-production-secret-key-2026')
+PASSWORD_RESET_SALT = 'shareloop-password-reset-salt'
+reset_serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 # ---------------------------------------------------------------------------
 # Dynamic Local File Upload Storage Configuration
@@ -137,6 +143,107 @@ def validate_password_strength(password: str) -> str | None:
     if not re.search(r'[^A-Za-z0-9]', password):
         return 'Password must contain at least one special symbol (e.g. !@#$%^&*).'
     return None
+
+
+def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str) -> bool:
+    """
+    Dispatches a secure, branded password recovery email via Gmail SMTP (TLS 587).
+    If MAIL_USERNAME or MAIL_PASSWORD are not configured in environment variables,
+    it gracefully logs the recovery link to the server console and returns True,
+    allowing local development and testing without hard crashes.
+    """
+    mail_server = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+    mail_port = int(os.environ.get('MAIL_PORT', 587))
+    mail_username = os.environ.get('MAIL_USERNAME', '').strip()
+    mail_password = os.environ.get('MAIL_PASSWORD', '').strip()
+    mail_sender = os.environ.get('MAIL_DEFAULT_SENDER', mail_username or 'no-reply@shareloop.io').strip()
+
+    print("\n" + "=" * 64)
+    print(f"[PASSWORD RECOVERY] Email dispatched to: {to_email} ({recipient_name})")
+    print(f"[RECOVERY URL]     {reset_url}")
+    if not mail_username or not mail_password:
+        print("[SMTP NOTICE]     MAIL_USERNAME or MAIL_PASSWORD not configured.")
+        print("                  Configure Gmail App Password on Render to enable live email delivery.")
+    print("=" * 64 + "\n")
+
+    if not mail_username or not mail_password:
+        return True
+
+    try:
+        subject = "Reset Your ShareLoop Password"
+        text_body = (
+            f"Hello {recipient_name},\n\n"
+            f"We received a request to reset your password for your ShareLoop account.\n"
+            f"Please click or paste the link below to set a new password:\n\n"
+            f"{reset_url}\n\n"
+            f"This link is cryptographically signed and will expire in 15 minutes.\n"
+            f"If you did not request a password reset, you can safely ignore this email.\n\n"
+            f"— The ShareLoop Team\n"
+        )
+
+        html_body = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body {{ margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f6f4; color: #1f2937; }}
+    .card {{ max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 14px; border: 1px solid #e5e7eb; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }}
+    .header {{ background-color: #1B3B2B; padding: 28px; text-align: center; }}
+    .header h1 {{ margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }}
+    .content {{ padding: 32px 28px; }}
+    .content p {{ margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #374151; }}
+    .btn-wrap {{ text-align: center; margin: 28px 0; }}
+    .btn {{ display: inline-block; background-color: #1B3B2B; color: #ffffff !important; text-decoration: none; font-size: 15px; font-weight: 600; padding: 13px 30px; border-radius: 8px; }}
+    .note {{ font-size: 13px; color: #6b7280; line-height: 1.5; }}
+    .link-alt {{ word-break: break-all; color: #1B3B2B; font-size: 12px; }}
+    .footer {{ background: #fafafa; border-top: 1px solid #e5e7eb; padding: 18px 24px; text-align: center; font-size: 12px; color: #9ca3af; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1>ShareLoop</h1>
+    </div>
+    <div class="content">
+      <p>Hello <strong>{recipient_name}</strong>,</p>
+      <p>We received a request to reset the password for your ShareLoop campus exchange account.</p>
+      <div class="btn-wrap">
+        <a href="{reset_url}" class="btn" target="_blank" rel="noopener">Reset Password</a>
+      </div>
+      <p class="note">
+        <strong>Security Notice:</strong> This reset link will expire in <strong>15 minutes</strong>. If you did not make this request, you can safely ignore this email; your account and password remain secure.
+      </p>
+      <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 22px 0;" />
+      <p class="note">
+        If the button above does not work, copy and paste the following URL into your browser:<br />
+        <a href="{reset_url}" class="link-alt">{reset_url}</a>
+      </p>
+    </div>
+    <div class="footer">
+      &copy; 2026 ShareLoop University Exchange &bull; Safe Peer-to-Peer Campus Resource Sharing
+    </div>
+  </div>
+</body>
+</html>"""
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"ShareLoop <{mail_sender}>"
+        msg['To'] = to_email
+
+        msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+        server = smtplib.SMTP(mail_server, mail_port, timeout=15)
+        server.starttls()
+        server.login(mail_username, mail_password)
+        server.sendmail(mail_sender, [to_email], msg.as_string())
+        server.quit()
+        print(f"[SMTP DELIVERED] Successfully delivered reset email to {to_email}")
+        return True
+    except Exception as err:
+        print(f"[SMTP ERROR] Failed delivering email to {to_email}: {err}")
+        return False
 
 
 NEPALI_PHONE_REGEX = re.compile(r'^(?:\(\+977\)\s*|\+977[\s\-]?)?([0-9]{10})$')
@@ -430,6 +537,114 @@ def api_logout():
     return jsonify({
         'message': 'Logged out successfully.',
         'last_email': last_email
+    })
+
+
+@app.route('/api/auth/forgot-password', methods=['POST'])
+def api_forgot_password():
+    """
+    Generates a cryptographically signed, 15-minute expiration token and dispatches
+    a password recovery link to the user's verified email address via Gmail SMTP.
+    """
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    email = (data.get('email') or '').strip().lower()
+
+    if not email or '@' not in email:
+        return jsonify({'error': 'Please provide a valid email address.'}), 400
+
+    generic_success = (
+        "If an account with that email exists, we have dispatched a password recovery link to your inbox. "
+        "Please check your email (and spam folder) within the next 15 minutes."
+    )
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        # Do not expose user existence for security
+        return jsonify({'message': generic_success})
+
+    # Generate cryptographically signed token with 15-minute lifecycle
+    token = reset_serializer.dumps(user.email, salt=PASSWORD_RESET_SALT)
+
+    # Build full absolute reset link
+    reset_url = url_for('reset_password_page', token=token, _external=True)
+
+    # Enforce HTTPS scheme if running behind Render reverse proxy
+    if request.headers.get('X-Forwarded-Proto') == 'https' and reset_url.startswith('http://'):
+        reset_url = 'https://' + reset_url[len('http://'):]
+
+    send_password_reset_email(user.email, user.name, reset_url)
+
+    return jsonify({'message': generic_success})
+
+
+@app.route('/reset-password/<token>')
+def reset_password_page(token):
+    """
+    Validates token signature and expiration (max 15 minutes / 900 seconds)
+    and presents the password reset modal or returns an error message.
+    """
+    try:
+        email = reset_serializer.loads(token, salt=PASSWORD_RESET_SALT, max_age=900)
+    except SignatureExpired:
+        return render_template(
+            'login.html',
+            reset_error="Your password reset link has expired (15-minute limit). Please request a new one."
+        )
+    except BadSignature:
+        return render_template(
+            'login.html',
+            reset_error="Invalid or corrupted password reset link. Please request a new password reset."
+        )
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return render_template(
+            'login.html',
+            reset_error="No account found associated with this password reset token."
+        )
+
+    return render_template(
+        'login.html',
+        reset_token=token,
+        reset_email=email,
+        reset_user_name=user.name
+    )
+
+
+@app.route('/api/auth/reset-password', methods=['POST'])
+def api_reset_password():
+    """
+    Validates the 15-minute timed token and updates the user's password in the database
+    with full password strength policy enforcement.
+    """
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    token = (data.get('token') or '').strip()
+    new_password = data.get('password') or ''
+
+    if not token:
+        return jsonify({'error': 'Reset token is required.'}), 400
+
+    try:
+        email = reset_serializer.loads(token, salt=PASSWORD_RESET_SALT, max_age=900)
+    except SignatureExpired:
+        return jsonify({'error': 'This password reset link has expired (15-minute limit). Please request a new link.'}), 400
+    except BadSignature:
+        return jsonify({'error': 'This password reset link is invalid or corrupted. Please request a new link.'}), 400
+
+    pw_error = validate_password_strength(new_password)
+    if pw_error:
+        return jsonify({'error': pw_error}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'error': 'No account was found for this reset token.'}), 404
+
+    user.set_password(new_password)
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Your password has been reset successfully. You can now log in with your new credentials.',
+        'email': user.email
     })
 
 

@@ -24,6 +24,87 @@
     </div>
   </div>
 
+  <!-- Forgot Password Request Modal -->
+  <div id="forgot-modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="forgot-modal-heading">
+    <div class="modal-card auth-validation-modal">
+      <div class="modal-icon-circle" style="background-color: #E0E7FF; color: #4338CA; border: 1.5px solid #C7D2FE;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </div>
+      <h3 id="forgot-modal-heading" class="modal-title">Reset Your Password</h3>
+      <p class="auth-modal-copy">
+        Enter your verified email address and we will dispatch a secure 15-minute recovery link to your inbox.
+      </p>
+      <form id="forgot-password-form" onsubmit="handleForgotPassword(event)" style="text-align: left;">
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label for="forgot-email">Account Email Address *</label>
+          <input
+            type="email"
+            id="forgot-email"
+            name="email"
+            required
+            autocomplete="email"
+            placeholder="example@gmail.com"
+          />
+        </div>
+        <div class="modal-actions" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+          <button type="button" class="btn-secondary" onclick="closeForgotPasswordModal()">Cancel</button>
+          <button type="submit" id="forgot-submit-btn" class="btn-primary">Send Reset Link</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Set New Password Modal (Shown when opening reset link with valid token) -->
+  <div id="reset-password-modal-backdrop" class="modal-backdrop {% if not reset_token %}hidden{% endif %}" role="dialog" aria-modal="true" aria-labelledby="reset-modal-heading">
+    <div class="modal-card auth-validation-modal">
+      <div class="modal-icon-circle success">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        </svg>
+      </div>
+      <h3 id="reset-modal-heading" class="modal-title">Create New Password</h3>
+      <p class="auth-modal-copy">
+        Resetting password for <strong id="reset-email-display">{{ reset_email or '' }}</strong>.
+      </p>
+      <form id="reset-password-form" onsubmit="handleResetPasswordSubmit(event)" style="text-align: left;">
+        <input type="hidden" id="reset-token-input" value="{{ reset_token or '' }}" />
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="reset-new-password">New Password *</label>
+          <input
+            type="password"
+            id="reset-new-password"
+            name="new_password"
+            required
+            minlength="8"
+            autocomplete="new-password"
+            placeholder="Min. 8 chars, 1 number &amp; 1 symbol"
+          />
+          <small class="field-helper-note">
+            Minimum 8 characters with at least 1 number and 1 special symbol.
+          </small>
+        </div>
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label for="reset-confirm-password">Confirm New Password *</label>
+          <input
+            type="password"
+            id="reset-confirm-password"
+            name="confirm_password"
+            required
+            minlength="8"
+            autocomplete="new-password"
+            placeholder="Re-enter your new password"
+          />
+        </div>
+        <div class="modal-actions" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+          <button type="submit" id="reset-submit-btn" class="btn-primary btn-full">Update Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="auth-wrapper">
     <!-- Left Brand & Campus Impact Showcase -->
     <div class="auth-showcase">
@@ -94,7 +175,10 @@
           </div>
 
           <div class="form-group">
-            <label for="login-password">Password</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <label for="login-password" style="margin-bottom: 0;">Password</label>
+              <button type="button" class="link-btn" onclick="openForgotPasswordModal()">Forgot password?</button>
+            </div>
             <input
               type="password"
               id="login-password"
@@ -596,6 +680,121 @@
         btn.textContent = 'Create Account';
       }
     }
+
+    function openForgotPasswordModal() {
+      const emailInput = document.getElementById('login-email');
+      const forgotInput = document.getElementById('forgot-email');
+      if (forgotInput && emailInput && emailInput.value) {
+        forgotInput.value = emailInput.value;
+      }
+      const modal = document.getElementById('forgot-modal-backdrop');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeForgotPasswordModal() {
+      const modal = document.getElementById('forgot-modal-backdrop');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function handleForgotPassword(event) {
+      event.preventDefault();
+      const btn = document.getElementById('forgot-submit-btn');
+      const emailInput = document.getElementById('forgot-email');
+      const email = emailInput ? emailInput.value.trim() : '';
+
+      if (!email) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Sending link...';
+
+      try {
+        const res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        closeForgotPasswordModal();
+        if (!res.ok) {
+          showAuthOverlayModal('Unable to Send', data.error || 'Failed to dispatch password recovery email.', true);
+        } else {
+          showAuthOverlayModal(
+            'Check Your Email',
+            data.message || 'If an account exists for that email, a password recovery link has been dispatched to your inbox.',
+            false
+          );
+        }
+      } catch (err) {
+        closeForgotPasswordModal();
+        showAuthOverlayModal('Error', err.message || 'An unexpected error occurred.', true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send Reset Link';
+      }
+    }
+
+    async function handleResetPasswordSubmit(event) {
+      event.preventDefault();
+      const token = document.getElementById('reset-token-input').value;
+      const newPw = document.getElementById('reset-new-password').value;
+      const confirmPw = document.getElementById('reset-confirm-password').value;
+      const btn = document.getElementById('reset-submit-btn');
+
+      if (newPw !== confirmPw) {
+        showAuthOverlayModal('Passwords Mismatch', 'The passwords you entered do not match. Please verify and try again.', true);
+        return;
+      }
+
+      const pwErr = validateClientPassword(newPw);
+      if (pwErr) {
+        showAuthOverlayModal('Password Requirement', pwErr, true);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Updating password...';
+
+      try {
+        const res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, password: newPw })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showAuthOverlayModal('Reset Failed', data.error || 'Failed to update password.', true);
+          return;
+        }
+
+        const resetModal = document.getElementById('reset-password-modal-backdrop');
+        if (resetModal) resetModal.classList.add('hidden');
+
+        if (data.email) {
+          const loginEmail = document.getElementById('login-email');
+          if (loginEmail) loginEmail.value = data.email;
+        }
+
+        switchAuthTab('login');
+        showAuthOverlayModal(
+          'Password Reset Successful!',
+          'Your password has been securely updated. You can now log in with your new credentials.',
+          false
+        );
+
+        window.history.replaceState({}, document.title, '/login');
+      } catch (err) {
+        showAuthOverlayModal('Reset Error', err.message || 'An unexpected error occurred.', true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Update Password';
+      }
+    }
+
+    {% if reset_error %}
+    window.addEventListener('DOMContentLoaded', () => {
+      showAuthOverlayModal('Password Recovery Link', {{ reset_error|tojson }}, true);
+    });
+    {% endif %}
   </script>
 </body>
 </html>
