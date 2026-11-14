@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=13" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=14" />
 </head>
 <body>
   <!-- Toast Notification -->
@@ -229,6 +229,14 @@
   <!-- Top Global Header (Anchored Fixed/Sticky at Top) -->
   <header class="topbar">
     <div class="topbar-left">
+      <button type="button" class="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Open navigation menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+
       <button type="button" class="brand-btn" onclick="navigateTo('{% if current_user.role == 'Admin' %}admin-overview{% else %}browse{% endif %}')">
         <div class="brand-logo-box">
           <img src="{{ url_for('static', filename='logo.png') }}?v=2" alt="ShareLoop Logo" class="brand-logo-img" />
@@ -266,10 +274,17 @@
     </div>
   </header>
 
+  <!-- Mobile Sidebar Backdrop Overlay -->
+  <div id="sidebar-backdrop" class="sidebar-backdrop hidden" onclick="closeMobileSidebar()"></div>
+
   <!-- Main Workspace Shell: Fixed/Sticky Left Sidebar + Dynamic View Content -->
   <div class="app-shell">
-    <!-- Left Sidebar Navigation (Fixed & Anchored Across All Portal Modes) -->
-    <aside class="sidebar">
+    <!-- Left Sidebar Navigation (Fixed on Desktop, Off-Canvas Drawer on Mobile) -->
+    <aside class="sidebar" id="app-sidebar">
+      <div class="sidebar-mobile-header">
+        <span class="brand-title" style="font-size: 1.15rem;">ShareLoop Menu</span>
+        <button type="button" class="sidebar-close-btn" onclick="closeMobileSidebar()" aria-label="Close menu">&times;</button>
+      </div>
       <nav class="sidebar-nav">
         {% if current_user.role == 'Admin' %}
         <!-- ================================================================ -->

@@ -170,9 +170,32 @@ async function performLogout() {
 }
 
 // --------------------------------------------------------------------------
-// 3. CORE SPA NAVIGATION ENGINE
+// 3. CORE SPA NAVIGATION ENGINE & MOBILE DRAWER
 // --------------------------------------------------------------------------
+function toggleMobileSidebar() {
+  const sidebar = document.getElementById('app-sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (!sidebar) return;
+  const isOpen = sidebar.classList.contains('mobile-open');
+  if (isOpen) {
+    closeMobileSidebar();
+  } else {
+    sidebar.classList.add('mobile-open');
+    if (backdrop) backdrop.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.getElementById('app-sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar) sidebar.classList.remove('mobile-open');
+  if (backdrop) backdrop.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
 function navigateTo(viewName) {
+  closeMobileSidebar();
   currentView = viewName;
 
   document.querySelectorAll('.view-section').forEach(sec => {
