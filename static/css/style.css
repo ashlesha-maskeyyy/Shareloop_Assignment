@@ -2629,6 +2629,7 @@ textarea {
 }
 
 @media (max-width: 768px) {
+
   /* 1. Mobile Topbar Header */
   .topbar {
     height: auto;
@@ -2705,7 +2706,8 @@ textarea {
   }
 
   .topbar-search input {
-    font-size: 16px !important; /* Prevents iOS auto-zoom */
+    font-size: 16px !important;
+    /* Prevents iOS auto-zoom */
     padding: 0.5rem 1rem 0.5rem 2.25rem;
   }
 
@@ -2789,6 +2791,22 @@ textarea {
     min-height: 44px;
     font-size: 0.95rem;
     padding: 0.75rem 1rem;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+  }
+
+  .nav-item span {
+    text-align: left !important;
+  }
+
+  .sidebar-section-divider {
+    text-align: left !important;
+    padding-left: 0.75rem !important;
+    display: block !important;
   }
 
   /* 3. Main Workspace Area */
@@ -2805,7 +2823,7 @@ textarea {
     margin-bottom: 1.25rem;
   }
 
-  .page-header > div:last-child {
+  .page-header>div:last-child {
     width: 100%;
   }
 
@@ -2900,14 +2918,17 @@ textarea {
   input[type="date"],
   select,
   textarea {
-    font-size: 16px !important; /* Prevents iOS auto-zoom */
+    font-size: 16px !important;
+    /* Prevents iOS auto-zoom */
     min-height: 44px;
   }
 
-  button,
   .btn-primary,
   .btn-outline,
-  .btn-secondary {
+  .btn-secondary,
+  .page-header button,
+  .modal-actions button,
+  .auth-form button[type="submit"] {
     min-height: 44px;
     display: inline-flex;
     align-items: center;

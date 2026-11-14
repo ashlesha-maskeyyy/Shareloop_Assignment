@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=14" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=15" />
 </head>
 <body>
   <!-- Toast Notification -->
@@ -282,7 +282,12 @@
     <!-- Left Sidebar Navigation (Fixed on Desktop, Off-Canvas Drawer on Mobile) -->
     <aside class="sidebar" id="app-sidebar">
       <div class="sidebar-mobile-header">
-        <span class="brand-title" style="font-size: 1.15rem;">ShareLoop Menu</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="brand-logo-box" style="width: 44px; height: 28px;">
+            <img src="{{ url_for('static', filename='logo.png') }}?v=2" alt="ShareLoop" class="brand-logo-img" />
+          </div>
+          <span class="brand-title" style="font-size: 1.15rem;">ShareLoop</span>
+        </div>
         <button type="button" class="sidebar-close-btn" onclick="closeMobileSidebar()" aria-label="Close menu">&times;</button>
       </div>
       <nav class="sidebar-nav">
