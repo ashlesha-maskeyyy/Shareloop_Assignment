@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=12" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=13" />
 </head>
 <body>
   <!-- Toast Notification -->
@@ -231,7 +231,7 @@
     <div class="topbar-left">
       <button type="button" class="brand-btn" onclick="navigateTo('{% if current_user.role == 'Admin' %}admin-overview{% else %}browse{% endif %}')">
         <div class="brand-logo-box">
-          <img src="{{ url_for('static', filename='logo.jpg') }}" alt="ShareLoop Logo" class="brand-logo-img" />
+          <img src="{{ url_for('static', filename='logo.png') }}?v=2" alt="ShareLoop Logo" class="brand-logo-img" />
         </div>
         <span class="brand-title">ShareLoop</span>
       </button>
