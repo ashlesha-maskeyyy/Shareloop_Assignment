@@ -362,15 +362,22 @@ textarea {
 }
 
 .brand-logo-box {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background-color: var(--forest);
-  color: #FFFFFF;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .auth-showcase .brand-logo-box {
