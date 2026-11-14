@@ -158,13 +158,15 @@ def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str
     mail_password = os.environ.get('MAIL_PASSWORD', '').strip()
     mail_sender = os.environ.get('MAIL_DEFAULT_SENDER', mail_username or 'no-reply@shareloop.io').strip()
 
-    print("\n" + "=" * 64)
-    print(f"[PASSWORD RECOVERY] Email dispatched to: {to_email} ({recipient_name})")
-    print(f"[RECOVERY URL]     {reset_url}")
+    print("\n" + "=" * 64, flush=True)
+    print(f"[PASSWORD RECOVERY] Email dispatched to: {to_email} ({recipient_name})", flush=True)
+    print(f"[RECOVERY URL]     {reset_url}", flush=True)
     if not mail_username or not mail_password:
-        print("[SMTP NOTICE]     MAIL_USERNAME or MAIL_PASSWORD not configured.")
-        print("                  Configure Gmail App Password on Render to enable live email delivery.")
-    print("=" * 64 + "\n")
+        print("[SMTP NOTICE]     MAIL_USERNAME or MAIL_PASSWORD not configured in environment.", flush=True)
+        print("                  Configure Gmail App Password on Render to enable live email delivery.", flush=True)
+    else:
+        print(f"[SMTP CONNECT]    Connecting to {mail_server}:{mail_port} as {mail_username}...", flush=True)
+    print("=" * 64 + "\n", flush=True)
 
     if not mail_username or not mail_password:
         return True
@@ -239,10 +241,10 @@ def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str
         server.login(mail_username, mail_password)
         server.sendmail(mail_sender, [to_email], msg.as_string())
         server.quit()
-        print(f"[SMTP DELIVERED] Successfully delivered reset email to {to_email}")
+        print(f"[SMTP DELIVERED] Successfully delivered reset email to {to_email}", flush=True)
         return True
     except Exception as err:
-        print(f"[SMTP ERROR] Failed delivering email to {to_email}: {err}")
+        print(f"[SMTP ERROR] Failed delivering email to {to_email}: {err}", flush=True)
         return False
 
 
@@ -557,10 +559,14 @@ def api_forgot_password():
         "Please check your email (and spam folder) within the next 15 minutes."
     )
 
+    print(f"\n[FORGOT PASSWORD] Recovery request received for email: '{email}'", flush=True)
+
     user = User.query.filter_by(email=email).first()
     if not user:
-        # Do not expose user existence for security
+        print(f"[FORGOT PASSWORD] NOTICE: '{email}' was NOT found in the database. (No account registered under this email).", flush=True)
         return jsonify({'message': generic_success})
+
+    print(f"[FORGOT PASSWORD] User found: '{user.name}' ({user.email}). Dispatching recovery email...", flush=True)
 
     # Generate cryptographically signed token with 15-minute lifecycle
     token = reset_serializer.dumps(user.email, salt=PASSWORD_RESET_SALT)
