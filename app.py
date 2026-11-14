@@ -1229,8 +1229,14 @@ def api_post_message(current_user, req_id):
 # Student Request Feed System & Anti-Fraud Local Proof Upload Engine
 # ---------------------------------------------------------------------------
 @app.route('/api/feed/active', methods=['GET'])
-@api_student_required
+@api_login_required
 def api_get_active_feed(current_user):
+    """
+    Returns active broadcast requests. Accessible to Students and Admins (for oversight & moderation).
+    """
+    if current_user.normalized_role not in ('Student', 'Admin'):
+        return jsonify({'error': 'Access Denied: Only Students and Administrators can view the Request Feed.'}), 403
+
     feed_posts = (
         FeedRequest.query.filter_by(is_active=True)
         .order_by(FeedRequest.created_at.desc())
@@ -1242,6 +1248,26 @@ def api_get_active_feed(current_user):
         'items': serialized,
         'total': len(serialized)
     })
+
+
+@app.route('/api/feed/<int:feed_id>', methods=['DELETE'])
+@app.route('/api/admin/feed/<int:feed_id>', methods=['DELETE'])
+@api_login_required
+def api_delete_feed_request(current_user, feed_id):
+    """
+    Deletes a broadcast request from the feed.
+    Permitted for Platform Administrators (moderation) and the student who created it.
+    """
+    feed_req = db.session.get(FeedRequest, feed_id)
+    if not feed_req:
+        return jsonify({'error': 'Request post not found.'}), 404
+
+    if current_user.normalized_role != 'Admin' and feed_req.student_id != current_user.id:
+        return jsonify({'error': 'Access Denied: You do not have permission to delete this request.'}), 403
+
+    db.session.delete(feed_req)
+    db.session.commit()
+    return jsonify({'message': 'Request post deleted successfully.'})
 
 
 @app.route('/api/feed/create', methods=['POST'])
@@ -1665,6 +1691,35 @@ def api_admin_account_decision(current_user, user_id):
         'decision': action_label,
         'status': target_user.status,
         'user': target_user.to_dict()
+    })
+
+
+@app.route('/api/admin/accounts/<int:user_id>', methods=['DELETE'])
+@app.route('/api/admin/accounts/delete/<int:user_id>', methods=['DELETE', 'POST'])
+@api_admin_required
+def api_admin_delete_account(current_user, user_id):
+    """
+    Admin Endpoint to permanently remove a registered Student or Organization account
+    from the platform directory.
+    """
+    if current_user.id == user_id:
+        return jsonify({'error': 'You cannot delete your own Administrator account.'}), 400
+
+    target_user = db.session.get(User, user_id)
+    if not target_user:
+        return jsonify({'error': 'Account not found.'}), 404
+
+    if target_user.normalized_role == 'Admin':
+        return jsonify({'error': 'Administrators cannot be removed through this panel.'}), 400
+
+    user_name = target_user.name
+    user_email = target_user.email
+    db.session.delete(target_user)
+    db.session.commit()
+
+    return jsonify({
+        'message': f"Account '{user_name}' ({user_email}) has been permanently removed.",
+        'user_id': user_id
     })
 
 

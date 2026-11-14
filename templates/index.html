@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=15" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=16" />
 </head>
 <body>
   <!-- Toast Notification -->
@@ -301,6 +301,10 @@
 
         <button type="button" id="nav-admin-resources" class="nav-item" onclick="handleSidebarNavWithDrawer('admin-resources', 'admin')">
           <span>Resource Feed</span>
+        </button>
+
+        <button type="button" id="nav-admin-feed" class="nav-item" onclick="navigateTo('feed')">
+          <span>Request Feed</span>
         </button>
 
         <button type="button" id="nav-admin-transactions" class="nav-item" onclick="navigateTo('admin-transactions')">
@@ -894,19 +898,20 @@
       </section>
 
       <!-- ================================================================ -->
-      <!-- VIEW 1B: STUDENT REQUEST FEED DASHBOARD (Role == 'Student' only) -->
+      <!-- VIEW 1B: STUDENT REQUEST FEED DASHBOARD (Students & Admin Moderation) -->
       <!-- ================================================================ -->
-      {% if current_user.role == 'Student' %}
+      {% if current_user.role in ['Student', 'Admin'] %}
       <section id="view-feed" class="view-section hidden">
         <div class="page-header">
           <div>
-            <h1>Student Request Feed</h1>
-            <p>Broadcast textbooks, lab gear, or equipment you need — or help a peer by uploading direct proof photos from your device.</p>
+            <h1>{% if current_user.role == 'Admin' %}Request Feed Moderation{% else %}Student Request Feed{% endif %}</h1>
+            <p>{% if current_user.role == 'Admin' %}Overview of all active campus broadcast requests with administrative deletion controls.{% else %}Broadcast textbooks, lab gear, or equipment you need — or help a peer by uploading direct proof photos from your device.{% endif %}</p>
           </div>
         </div>
 
         <div class="feed-central-container">
-          <!-- Centralized Social-Media Style Status Composer Card -->
+          <!-- Centralized Social-Media Style Status Composer Card (Students Only) -->
+          {% if current_user.role == 'Student' %}
           <div class="feed-composer-card" onclick="openFeedCreateModal()">
             <span id="feed-composer-avatar" class="avatar-circle lg">{{ current_user.initials }}</span>
             <input
@@ -919,13 +924,16 @@
               onfocus="this.blur(); openFeedCreateModal();"
             />
           </div>
+          {% endif %}
 
           <!-- Chronological Stream of Active Campus Requests -->
           <div class="feed-stream-column">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
               <div>
                 <h2 style="font-size: 1.1rem; font-weight: 700; color: #111827;">Active Campus Requests</h2>
-                <p style="font-size: 0.82rem; color: #64748b;">Click "I Have This" to upload device proof photos and start a pickup chat.</p>
+                <p style="font-size: 0.82rem; color: #64748b;">
+                  {% if current_user.role == 'Admin' %}Review current requests and delete any inappropriate or completed posts.{% else %}Click "I Have This" to upload device proof photos and start a pickup chat.{% endif %}
+                </p>
               </div>
               <button type="button" class="btn-outline btn-sm" onclick="loadFeedWorkspace()">
                 Refresh Feed
@@ -1297,6 +1305,6 @@
   <script>
     window.SHARELOOP_INITIAL_USER = {{ current_user | tojson | safe }};
   </script>
-  <script src="{{ url_for('static', filename='js/app.js') }}?v=11"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}?v=12"></script>
 </body>
 </html>

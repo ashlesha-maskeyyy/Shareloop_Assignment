@@ -208,7 +208,7 @@ function navigateTo(viewName) {
 
   const navMap = {
     'browse': 'nav-browse',
-    'feed': 'nav-feed',
+    'feed': (currentUser && currentUser.role === 'Admin') ? 'nav-admin-feed' : 'nav-feed',
     'my-listings': 'nav-my-listings',
     'add-resource': 'nav-my-listings',
     'my-requests': 'nav-my-requests',
@@ -217,6 +217,7 @@ function navigateTo(viewName) {
     'security': 'nav-security',
     'admin-overview': 'nav-admin-overview',
     'admin-resources': 'nav-admin-resources',
+    'admin-feed': 'nav-admin-feed',
     'admin-transactions': 'nav-admin-transactions',
     'admin-active-accounts': 'nav-admin-active-accounts',
     'admin-pending-accounts': 'nav-admin-pending-accounts'
@@ -228,7 +229,7 @@ function navigateTo(viewName) {
     if (navBtn) navBtn.classList.add('active');
   }
 
-  const targetSection = document.getElementById(`view-${viewName}`);
+  const targetSection = document.getElementById(`view-${viewName === 'admin-feed' ? 'feed' : viewName}`);
   if (targetSection) {
     targetSection.classList.remove('hidden');
   }
@@ -236,7 +237,7 @@ function navigateTo(viewName) {
   // Trigger contextual data fetch
   if (viewName === 'browse') {
     loadBrowseItems();
-  } else if (viewName === 'feed') {
+  } else if (viewName === 'feed' || viewName === 'admin-feed') {
     syncUserHeaderAndComposer();
     loadFeedWorkspace();
   } else if (viewName === 'my-listings') {
@@ -797,10 +798,15 @@ async function loadFeedWorkspace() {
               </div>
             </div>
             <div>
-              ${isMine
-          ? `<span class="badge badge-neutral">Your Active Broadcast</span>`
-          : `<button type="button" class="btn-primary btn-sm" onclick="openFeedRespondModal(${post.id})">I Have This</button>`
-        }
+              ${currentUser && currentUser.role === 'Admin'
+                ? `<button type="button" class="btn-danger btn-sm" onclick="confirmDeleteFeedRequest(${post.id}, '${escapeAttr(post.title)}')">Delete Post</button>`
+                : isMine
+                  ? `<div style="display: flex; align-items: center; gap: 0.5rem;">
+                       <span class="badge badge-neutral">Your Active Broadcast</span>
+                       <button type="button" class="btn-danger btn-sm" onclick="confirmDeleteFeedRequest(${post.id}, '${escapeAttr(post.title)}')">Delete</button>
+                     </div>`
+                  : `<button type="button" class="btn-primary btn-sm" onclick="openFeedRespondModal(${post.id})">I Have This</button>`
+              }
             </div>
           </div>
         </article>
@@ -808,6 +814,32 @@ async function loadFeedWorkspace() {
     }).join('');
   } catch (err) {
     console.error('Error loading feed workspace:', err);
+  }
+}
+
+function confirmDeleteFeedRequest(feedId, title) {
+  openConfirmModal(
+    `Are you sure you want to delete this request: "${title}"?`,
+    'Delete Post',
+    () => performDeleteFeedRequest(feedId)
+  );
+}
+
+async function performDeleteFeedRequest(feedId) {
+  try {
+    const res = await fetch(`/api/feed/${feedId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showToast(data.error || 'Failed to delete request.', true);
+      return;
+    }
+    showToast(data.message || 'Request post deleted successfully.');
+    await loadFeedWorkspace();
+  } catch (err) {
+    showToast(err.message || 'Error deleting request.', true);
   }
 }
 
@@ -2104,11 +2136,41 @@ function renderAdminActiveAccountsList() {
         <h3>${escapeHtml(acc.name)}</h3>
         <p>${escapeHtml(acc.email)} ${acc.phone ? '&bull; ' + escapeHtml(acc.phone) : ''} ${acc.dob ? '&bull; DOB: ' + escapeHtml(acc.dob) : ''}</p>
       </div>
-      <div class="list-row-actions">
+      <div class="list-row-actions" style="display: flex; align-items: center; gap: 0.85rem;">
         <span class="text-muted">Joined ${escapeHtml(acc.created_at)}</span>
+        <button type="button" class="btn-danger btn-sm" onclick="confirmAdminDeleteAccount(${acc.id}, '${escapeAttr(acc.name)}')">
+          Remove User
+        </button>
       </div>
     </div>
   `).join('');
+}
+
+function confirmAdminDeleteAccount(userId, userName) {
+  openConfirmModal(
+    `Are you sure you want to permanently remove the account for "${userName}"? All associated listings and requests will be deleted.`,
+    'Remove User',
+    () => performAdminDeleteAccount(userId, userName)
+  );
+}
+
+async function performAdminDeleteAccount(userId, userName) {
+  try {
+    const res = await fetch(`/api/admin/accounts/${userId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showToast(data.error || 'Failed to remove user account.', true);
+      return;
+    }
+    showToast(data.message || `Account for "${userName}" has been removed.`);
+    await loadAdminActiveAccounts();
+    await loadAdminOverview();
+  } catch (err) {
+    showToast(err.message || 'Error removing account.', true);
+  }
 }
 
 async function loadAdminActiveAccounts() {
