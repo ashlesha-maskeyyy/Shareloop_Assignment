@@ -756,15 +756,73 @@ function closeFeedCreateModal() {
   }
 }
 
-async function loadFeedWorkspace() {
+// --------------------------------------------------------------------------
+// REAL-TIME FEED SYNC ENGINE (BroadcastChannel + 2.5s Polling + Optimistic Deletes)
+// --------------------------------------------------------------------------
+let feedBroadcastChannel = null;
+let feedSyncTimer = null;
+let cachedFeedChecksum = '';
+
+try {
+  feedBroadcastChannel = new BroadcastChannel('shareloop_feed_sync');
+  feedBroadcastChannel.onmessage = (event) => {
+    if (event.data && event.data.type === 'FEED_CHANGED') {
+      if (currentView === 'feed' || currentView === 'admin-feed') {
+        loadFeedWorkspace(true);
+      }
+    }
+  };
+} catch (e) {
+  // Graceful fallback for older environments
+}
+
+window.addEventListener('storage', (e) => {
+  if (e.key === 'shareloop_feed_timestamp') {
+    if (currentView === 'feed' || currentView === 'admin-feed') {
+      loadFeedWorkspace(true);
+    }
+  }
+});
+
+function broadcastFeedSync() {
+  if (feedBroadcastChannel) {
+    try {
+      feedBroadcastChannel.postMessage({ type: 'FEED_CHANGED', timestamp: Date.now() });
+    } catch (e) {}
+  }
+  try {
+    localStorage.setItem('shareloop_feed_timestamp', Date.now().toString());
+  } catch (e) {}
+}
+
+function ensureFeedSyncTimer() {
+  if (feedSyncTimer) return;
+  feedSyncTimer = setInterval(() => {
+    if (currentView === 'feed' || currentView === 'admin-feed') {
+      loadFeedWorkspace(true);
+    }
+  }, 2500);
+}
+
+async function loadFeedWorkspace(isSilent = false) {
   const container = document.getElementById('feed-stream-container');
   if (!container) return;
+
+  ensureFeedSyncTimer();
 
   try {
     const res = await fetch('/api/feed/active');
     if (!res.ok) return;
     const data = await res.json();
-    feedRequestsList = data.feed_requests || data.items || [];
+    const newItems = data.feed_requests || data.items || [];
+
+    // Checksum based on IDs to prevent unnecessary DOM re-rendering & flickering
+    const newChecksum = newItems.map(p => `${p.id}-${p.is_active}`).join('|');
+    if (isSilent && newChecksum === cachedFeedChecksum && container.children.length > 0) {
+      return;
+    }
+    cachedFeedChecksum = newChecksum;
+    feedRequestsList = newItems;
 
     if (feedRequestsList.length === 0) {
       container.innerHTML = `
@@ -779,7 +837,7 @@ async function loadFeedWorkspace() {
     container.innerHTML = feedRequestsList.map(post => {
       const isMine = currentUser && post.student_id === currentUser.id;
       return `
-        <article class="feed-card">
+        <article class="feed-card" id="feed-card-${post.id}">
           <div class="feed-card-top">
             <span class="badge badge-green">${escapeHtml(post.category)}</span>
             <span class="text-muted">${escapeHtml(post.created_at)}</span>
@@ -813,7 +871,7 @@ async function loadFeedWorkspace() {
       `;
     }).join('');
   } catch (err) {
-    console.error('Error loading feed workspace:', err);
+    if (!isSilent) console.error('Error loading feed workspace:', err);
   }
 }
 
@@ -826,6 +884,15 @@ function confirmDeleteFeedRequest(feedId, title) {
 }
 
 async function performDeleteFeedRequest(feedId) {
+  // Optimistic real-time DOM removal with smooth fade-out
+  const card = document.getElementById(`feed-card-${feedId}`);
+  if (card) {
+    card.style.transition = 'all 0.22s ease';
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.96)';
+    setTimeout(() => { if (card) card.remove(); }, 220);
+  }
+
   try {
     const res = await fetch(`/api/feed/${feedId}`, {
       method: 'DELETE',
@@ -834,12 +901,15 @@ async function performDeleteFeedRequest(feedId) {
     const data = await res.json();
     if (!res.ok) {
       showToast(data.error || 'Failed to delete request.', true);
+      await loadFeedWorkspace();
       return;
     }
     showToast(data.message || 'Request post deleted successfully.');
-    await loadFeedWorkspace();
+    broadcastFeedSync();
+    await loadFeedWorkspace(true);
   } catch (err) {
     showToast(err.message || 'Error deleting request.', true);
+    await loadFeedWorkspace();
   }
 }
 
@@ -883,6 +953,7 @@ async function handleCreateFeedPost(event) {
 
     closeFeedCreateModal();
     showToast(data.message || 'Your request has been broadcast to the Campus Feed!');
+    broadcastFeedSync();
     await loadFeedWorkspace();
   } catch (err) {
     showToast(err.message, true);
@@ -981,6 +1052,7 @@ async function handleFeedRespondSubmit(event) {
 
     closeFeedRespondModal();
     showToast(data.message || 'Proof photos verified! Opening pickup coordination chat...');
+    broadcastFeedSync();
 
     await loadFeedWorkspace();
     await loadAllRequests();
