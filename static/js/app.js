@@ -770,7 +770,7 @@ async function loadFeedWorkspace() {
       container.innerHTML = `
         <div class="empty-state">
           <h3>No active campus requests right now</h3>
-          <p>Click the status box above to broadcast a textbook, calculator, or lab item you need!</p>
+          <p>${(currentUser && currentUser.role === 'Admin') ? 'There are currently no active student broadcast requests in the system.' : 'Click the status box above to broadcast a textbook, calculator, or lab item you need!'}</p>
         </div>
       `;
       return;
