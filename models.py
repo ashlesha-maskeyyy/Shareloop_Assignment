@@ -9,6 +9,7 @@ FeedRequest models.
 """
 
 from datetime import datetime, date
+import json
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -293,4 +294,204 @@ class FeedRequest(db.Model):
             'student_university': self.student.university if (self.student and self.student.university) else '',
             'is_active': bool(self.is_active),
             'created_at': self.created_at.strftime('%b %d, %Y • %I:%M %p') if self.created_at else ''
+        }
+
+
+# ===========================================================================
+# Organization Needs Broadcasts (Emergency Relief & Ongoing Community Drives)
+# ===========================================================================
+VALID_URGENCY_MODES = {
+    'crisis_shelter': {
+        'label': 'Crisis – Immediate Shelter / CFS',
+        'icon': '',
+        'badge_class': 'badge-red',
+        'color': '#DC2626',
+        'is_crisis': True
+    },
+    'crisis_school': {
+        'label': 'Crisis – School Recovery',
+        'icon': '',
+        'badge_class': 'badge-amber',
+        'color': '#EA580C',
+        'is_crisis': True
+    },
+    'seasonal_drive': {
+        'label': 'Seasonal Drive',
+        'icon': '',
+        'badge_class': 'badge-yellow',
+        'color': '#CA8A04',
+        'is_crisis': False
+    },
+    'ongoing': {
+        'label': 'Ongoing Project',
+        'icon': '',
+        'badge_class': 'badge-green',
+        'color': '#16A34A',
+        'is_crisis': False
+    }
+}
+
+VALID_ROAD_CONDITIONS = ('Motorable', '4WD / Pickup Only', 'Foot / Porter Trail')
+
+
+class OrgBroadcast(db.Model):
+    __tablename__ = 'org_broadcasts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    org_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    title = db.Column(db.String(220), nullable=False)
+    urgency_mode = db.Column(db.String(50), nullable=False, default='crisis_shelter', index=True)
+    beneficiary_count = db.Column(db.Integer, nullable=False, default=0)
+    road_condition = db.Column(db.String(60), nullable=False, default='Motorable')
+    safe_drop_point = db.Column(db.String(250), nullable=False)
+    location = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    organization = db.relationship('User', backref=db.backref('org_broadcasts', cascade='all, delete-orphan', lazy=True))
+    items = db.relationship('OrgBroadcastItem', backref='broadcast', cascade='all, delete-orphan', lazy=True, order_by='OrgBroadcastItem.id.asc()')
+
+    def to_dict(self) -> dict:
+        mode_meta = VALID_URGENCY_MODES.get(self.urgency_mode, VALID_URGENCY_MODES['crisis_shelter'])
+
+        # Compute pending counts by item_id from pending_dropoff contributions
+        pending_by_item = {}
+        for c in getattr(self, 'contributions', []):
+            if c.status == 'pending_dropoff':
+                for it in c.get_items():
+                    iid = it.get('item_id')
+                    pqty = int(it.get('pledged_qty') or it.get('quantity') or 0)
+                    if iid and pqty > 0:
+                        pending_by_item[iid] = pending_by_item.get(iid, 0) + pqty
+
+        serialized_items = [it.to_dict(pending_count=pending_by_item.get(it.id, 0)) for it in self.items]
+        total_needed = sum(it.quantity_needed for it in self.items)
+        total_secured = sum(it.quantity_secured for it in self.items)
+        total_pending = sum(pending_by_item.values())
+        percent = min(100, round((total_secured / total_needed * 100))) if total_needed > 0 else (100 if total_secured > 0 else 0)
+
+        return {
+            'id': self.id,
+            'org_id': self.org_id,
+            'org_name': self.organization.name if self.organization else 'Verified Community Organization',
+            'org_initials': self.organization.initials if self.organization else 'ORG',
+            'org_email': self.organization.email if self.organization else '',
+            'org_verified': True,
+            'title': self.title,
+            'urgency_mode': self.urgency_mode,
+            'mode_label': mode_meta['label'],
+            'mode_icon': mode_meta['icon'],
+            'badge_class': mode_meta['badge_class'],
+            'urgency_color': mode_meta['color'],
+            'is_crisis': mode_meta['is_crisis'],
+            'beneficiary_count': self.beneficiary_count or 0,
+            'road_condition': self.road_condition or 'Motorable',
+            'safe_drop_point': self.safe_drop_point,
+            'location': self.location,
+            'description': self.description or '',
+            'is_active': bool(self.is_active),
+            'total_needed': total_needed,
+            'total_secured': total_secured,
+            'total_pending': total_pending,
+            'total_remaining': max(0, total_needed - total_secured),
+            'items_needed': total_needed,
+            'items_secured': total_secured,
+            'items_pending': total_pending,
+            'items_remaining': max(0, total_needed - total_secured),
+            'percent_fulfilled': percent,
+            'fulfillment_percentage': percent,
+            'items': serialized_items,
+            'pending_pledges_count': len([c for c in getattr(self, 'contributions', []) if c.status == 'pending_dropoff']),
+            'verified_records_count': len([c for c in getattr(self, 'contributions', []) if c.status == 'verified_received']),
+            'created_at': self.created_at.strftime('%b %d, %Y • %I:%M %p') if self.created_at else '',
+            'created_date': self.created_at.strftime('%b %d, %Y') if self.created_at else ''
+        }
+
+
+class OrgBroadcastItem(db.Model):
+    __tablename__ = 'org_broadcast_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    broadcast_id = db.Column(db.Integer, db.ForeignKey('org_broadcasts.id', ondelete='CASCADE'), nullable=False, index=True)
+    age_bracket = db.Column(db.String(80), nullable=True, default='General')
+    item_name = db.Column(db.String(200), nullable=False)
+    quantity_needed = db.Column(db.Integer, nullable=False, default=1)
+    quantity_secured = db.Column(db.Integer, nullable=False, default=0)
+    unit = db.Column(db.String(50), default='units')
+
+    def to_dict(self, pending_count: int = 0) -> dict:
+        remaining = max(0, self.quantity_needed - self.quantity_secured)
+        percent = min(100, round((self.quantity_secured / self.quantity_needed * 100))) if self.quantity_needed > 0 else 0
+        return {
+            'id': self.id,
+            'broadcast_id': self.broadcast_id,
+            'age_bracket': self.age_bracket or 'General',
+            'item_name': self.item_name,
+            'quantity_needed': self.quantity_needed,
+            'quantity_secured': self.quantity_secured,
+            'quantity_pending': pending_count,
+            'quantity_remaining': remaining,
+            'unit': self.unit or 'units',
+            'percent_fulfilled': percent,
+            'is_fulfilled': self.quantity_secured >= self.quantity_needed
+        }
+
+
+class BroadcastContribution(db.Model):
+    __tablename__ = 'broadcast_contributions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    broadcast_id = db.Column(db.Integer, db.ForeignKey('org_broadcasts.id', ondelete='CASCADE'), nullable=False, index=True)
+    reference_code = db.Column(db.String(32), unique=True, nullable=False, index=True)
+    contributor_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+    contributor_name = db.Column(db.String(120), nullable=False)
+    contributor_type = db.Column(db.String(40), nullable=False, default='student')  # 'student', 'organization', 'offline_walkin'
+    items_json = db.Column(db.Text, nullable=False, default='[]')
+    status = db.Column(db.String(30), nullable=False, default='pending_dropoff', index=True)  # 'pending_dropoff', 'verified_received', 'cancelled'
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    verified_at = db.Column(db.DateTime, nullable=True)
+    verified_by = db.Column(db.String(120), nullable=True)
+
+    broadcast = db.relationship('OrgBroadcast', backref=db.backref('contributions', cascade='all, delete-orphan', lazy=True, order_by='BroadcastContribution.created_at.desc()'))
+    contributor = db.relationship('User', foreign_keys=[contributor_id], backref=db.backref('broadcast_pledges', lazy=True, order_by='BroadcastContribution.created_at.desc()'))
+
+    def get_items(self) -> list:
+        try:
+            return json.loads(self.items_json) if self.items_json else []
+        except Exception:
+            return []
+
+    def set_items(self, items_list: list):
+        self.items_json = json.dumps(items_list)
+
+    def to_dict(self) -> dict:
+        items = self.get_items()
+        total_pledged = sum(int(it.get('pledged_qty') or it.get('quantity') or 0) for it in items)
+        total_received = sum(int(it.get('received_qty') if it.get('received_qty') is not None else (it.get('pledged_qty') or it.get('quantity') or 0)) for it in items) if self.status == 'verified_received' else 0
+
+        return {
+            'id': self.id,
+            'broadcast_id': self.broadcast_id,
+            'broadcast_title': self.broadcast.title if self.broadcast else 'Relief Drive',
+            'broadcast_urgency_mode': self.broadcast.urgency_mode if self.broadcast else 'crisis_shelter',
+            'safe_drop_point': self.broadcast.safe_drop_point if self.broadcast else '',
+            'location': self.broadcast.location if self.broadcast else '',
+            'org_name': self.broadcast.organization.name if (self.broadcast and self.broadcast.organization) else '',
+            'reference_code': self.reference_code,
+            'contributor_id': self.contributor_id,
+            'contributor_name': self.contributor_name,
+            'contributor_type': self.contributor_type,
+            'items': items,
+            'total_items_pledged': total_pledged,
+            'total_items_received': total_received,
+            'status': self.status,
+            'status_label': 'Pending Drop-Off' if self.status == 'pending_dropoff' else ('Verified Received' if self.status == 'verified_received' else 'Cancelled'),
+            'notes': self.notes or '',
+            'created_at': self.created_at.strftime('%b %d, %Y • %I:%M %p') if self.created_at else '',
+            'created_date': self.created_at.strftime('%b %d, %Y') if self.created_at else '',
+            'verified_at': self.verified_at.strftime('%b %d, %Y • %I:%M %p') if self.verified_at else '',
+            'verified_by': self.verified_by or ''
         }

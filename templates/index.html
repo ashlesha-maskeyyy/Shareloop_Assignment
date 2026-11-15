@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=17" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=25" />
 </head>
 <body>
   <!-- Toast Notification -->
@@ -226,6 +226,113 @@
   </div>
   {% endif %}
 
+  <!-- Modal: Pledge Confirmation Pass (Contributor Reference & Drop-off Voucher) -->
+  <div id="pledge-pass-modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" onclick="if(event.target === this) closePledgePassModal()">
+    <div class="modal-card modal-card-wide" style="max-width: 580px; text-align: left;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.75rem;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: #DCFCE7; display: flex; align-items: center; justify-content: center; color: #15803D; flex-shrink: 0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <div>
+            <h3 class="modal-title" style="margin: 0 0 2px 0; font-size: 1.15rem; color: #0F172A;">Pledge Recorded Successfully</h3>
+            <p style="font-size: 0.82rem; color: #64748B; margin: 0;">Your contribution has been logged as pending physical drop-off.</p>
+          </div>
+        </div>
+        <button type="button" class="btn-outline btn-sm" onclick="closePledgePassModal()" style="padding: 0.2rem 0.5rem; line-height: 1;">&times;</button>
+      </div>
+
+      <!-- Reference Code Highlight Card -->
+      <div style="background: #F0FDF4; border: 1.5px dashed #86EFAC; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.15rem; text-align: center;">
+        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 700; color: #166534; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Contribution Reference Code</span>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 4px;">
+          <span id="pledge-pass-code" style="font-size: 1.75rem; font-weight: 800; color: #14532D; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.08em;">SL-0000</span>
+          <button type="button" class="btn-outline btn-sm" onclick="copyPledgePassCode()" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.76rem; background: #FFFFFF;" title="Copy Code">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span id="pledge-pass-copy-text">Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Drop Point Location -->
+      <div style="margin-bottom: 1rem; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.75rem 0.95rem;">
+        <span style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 2px;">Physical Drop-Off Point</span>
+        <div id="pledge-pass-droppoint" style="font-size: 0.88rem; font-weight: 600; color: #0F172A;">Main Campus Gate / Relief Hub</div>
+      </div>
+
+      <!-- Pledged Items Summary -->
+      <div style="margin-bottom: 1.15rem;">
+        <span style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 0.4rem;">Pledged Supplies</span>
+        <div id="pledge-pass-items-list" style="max-height: 150px; overflow-y: auto; border: 1px solid #E2E8F0; border-radius: 8px; background: #FFFFFF;">
+          <!-- Injected items list -->
+        </div>
+      </div>
+
+      <div style="background: #EFF6FF; border: 1px solid #DBEAFE; border-radius: 6px; padding: 0.55rem 0.75rem; font-size: 0.78rem; color: #1E40AF; margin-bottom: 1.25rem;">
+        <strong>Next Step:</strong> Bring your items to the drop point above and quote your reference code. The organization will verify the physical count and mark them secured in the drive ledger.
+      </div>
+
+      <div class="modal-actions" style="justify-content: flex-end; gap: 0.65rem;">
+        <button type="button" class="btn-outline" onclick="closePledgePassModal(); navigateTo('my-contributions');">
+          View My Contributions
+        </button>
+        <button type="button" class="btn-primary" onclick="closePledgePassModal(); handleBackFromRecordPage();">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Owner Physical Verification Prompt (Verify Received Supplies) -->
+  <div id="verify-contribution-modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" onclick="if(event.target === this) closeVerifyContributionModal()">
+    <div class="modal-card modal-card-wide" style="max-width: 620px; text-align: left;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.75rem;">
+        <div>
+          <h3 class="modal-title" style="margin: 0 0 2px 0; font-size: 1.15rem; color: #0F172A;">Verify Physical Supplies Received</h3>
+          <p style="font-size: 0.82rem; color: #64748B; margin: 0;">Confirm the actual physical count received from this contributor.</p>
+        </div>
+        <button type="button" class="btn-outline btn-sm" onclick="closeVerifyContributionModal()" style="padding: 0.2rem 0.5rem; line-height: 1;">&times;</button>
+      </div>
+
+      <div id="verify-modal-meta" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.75rem 0.95rem; margin-bottom: 1rem; font-size: 0.84rem;">
+        <!-- Injected contributor & reference meta -->
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label class="form-label" style="font-size: 0.82rem; font-weight: 700; margin-bottom: 0.4rem;">Actual Quantities Received</label>
+        <div class="table-responsive" style="border: 1px solid #E2E8F0; border-radius: 8px; max-height: 220px; overflow-y: auto;">
+          <table class="table-compact" style="width: 100%; font-size: 0.84rem; border-collapse: collapse;">
+            <thead style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0; text-align: left;">
+              <tr>
+                <th style="padding: 0.5rem 0.65rem;">Item Description</th>
+                <th style="padding: 0.5rem 0.65rem; width: 22%; text-align: right;">Pledged</th>
+                <th style="padding: 0.5rem 0.65rem; width: 26%; text-align: right;">Actual Recv'd</th>
+              </tr>
+            </thead>
+            <tbody id="verify-modal-items-tbody">
+              <!-- Dynamically populated items with editable actual received inputs -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.25rem;">
+        <label class="form-label" style="font-size: 0.82rem; font-weight: 600;">Verification Memo / Notes (Optional)</label>
+        <input type="text" id="verify-modal-notes" class="form-control" placeholder="e.g. Received in good condition at campus office" />
+      </div>
+
+      <div class="modal-actions" style="justify-content: flex-end; gap: 0.65rem;">
+        <button type="button" class="btn-outline" onclick="closeVerifyContributionModal()">
+          Cancel
+        </button>
+        <button type="button" id="confirm-verify-btn" class="btn-primary" onclick="submitVerifyContribution()" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"></path></svg>
+          Confirm &amp; Mark Secured
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Top Global Header (Anchored Fixed/Sticky at Top) -->
   <header class="topbar">
     <div class="topbar-left">
@@ -333,6 +440,16 @@
           <span id="nav-browse-label">{% if current_user.role == 'Organization' %}Listings{% else %}Browse Exchange{% endif %}</span>
         </button>
 
+        {% if current_user.role == 'Organization' %}
+        <button type="button" id="nav-org-broadcasts" class="nav-item" onclick="navigateTo('org-broadcasts')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+          <span>Needs Broadcasts</span>
+        </button>
+        {% endif %}
+
         {% if current_user.role == 'Student' %}
         <button type="button" id="nav-feed" class="nav-item" onclick="navigateTo('feed')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -340,15 +457,15 @@
           </svg>
           <span>Request Feed</span>
         </button>
-        {% endif %}
 
-        <button type="button" id="nav-my-listings" class="nav-item {% if current_user.role == 'Organization' %}hidden{% endif %}" onclick="navigateTo('my-listings')">
+        <button type="button" id="nav-my-listings" class="nav-item" onclick="navigateTo('my-listings')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
           </svg>
           <span>My Listings</span>
         </button>
+        {% endif %}
 
         <button type="button" id="nav-my-requests" class="nav-item" onclick="navigateTo('my-requests')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -360,13 +477,22 @@
           <span>My Requests</span>
         </button>
 
-        <button type="button" id="nav-incoming" class="nav-item {% if current_user.role == 'Organization' %}hidden{% endif %}" onclick="navigateTo('incoming')">
+        <button type="button" id="nav-my-contributions" class="nav-item" onclick="navigateTo('my-contributions')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+          <span>My Contributions</span>
+        </button>
+
+        {% if current_user.role == 'Student' %}
+        <button type="button" id="nav-incoming" class="nav-item" onclick="navigateTo('incoming')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
             <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
           </svg>
           <span>Incoming Requests</span>
         </button>
+        {% endif %}
         {% endif %}
 
         <!-- Separated Profile & Security Sidebar Pages -->
@@ -1098,6 +1224,7 @@
       <!-- ================================================================ -->
       <!-- VIEW 6: INCOMING REQUESTS (Requests for Your Listings)          -->
       <!-- ================================================================ -->
+      {% if current_user.role == 'Student' %}
       <section id="view-incoming" class="view-section hidden">
         <div class="page-header">
           <div>
@@ -1107,6 +1234,8 @@
         </div>
         <div id="incoming-requests-container" class="stack-list"></div>
       </section>
+      {% endif %}
+
       <!-- ================================================================ -->
       <!-- VIEW 7: REQUEST DETAILS & PICKUP CHAT (Student / Org Only)       -->
       <!-- ================================================================ -->
@@ -1122,6 +1251,559 @@
         <div id="request-details-container"></div>
       </section>
       {% endif %}
+
+      <!-- ================================================================ -->
+      <!-- VIEW 8: ORGANIZATION NEEDS BROADCASTS (Emergency & Ongoing Drives) -->
+      <!-- ================================================================ -->
+      {% if current_user.role in ['Organization', 'Admin'] %}
+      <section id="view-org-broadcasts" class="view-section hidden">
+        <div class="org-broadcasts-workspace">
+          <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h1>Organization Needs Broadcasts</h1>
+              <p>Broadcast community emergency relief needs or ongoing project drives directly to university students on campus.</p>
+            </div>
+            {% if current_user.role == 'Organization' %}
+            <button type="button" class="btn-primary" onclick="openOrgBroadcastModal()" style="display: flex; align-items: center; gap: 6px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Create Needs Broadcast
+            </button>
+            {% endif %}
+          </div>
+
+          <!-- Metric KPI Cards for Organizations (Responsive 4-column Grid) -->
+          <div class="org-kpi-grid">
+            <div class="kpi-card">
+              <span class="kpi-label">Active Relief Drives</span>
+              <div id="org-kpi-active-count" class="kpi-value">0</div>
+              <span class="kpi-subtext">Published community broadcasts</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Total Items Secured</span>
+              <div id="org-kpi-secured-count" class="kpi-value" style="color: #059669;">0</div>
+              <span class="kpi-subtext">Pledged &amp; donated by students</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Items Still Needed</span>
+              <div id="org-kpi-needed-count" class="kpi-value" style="color: #DC2626;">0</div>
+              <span class="kpi-subtext">Across active relief drives</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Overall Fulfillment</span>
+              <div id="org-kpi-fulfillment-rate" class="kpi-value" style="color: #2563EB;">0%</div>
+              <span class="kpi-subtext">Average progress to goal</span>
+            </div>
+          </div>
+
+          <!-- Filter / Tab Navigation & Refresh -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
+            <div class="org-tabs-bar">
+              <button type="button" class="org-tab-btn active" id="tab-all-broadcasts" onclick="switchOrgBroadcastTab('all')">
+                All Drives <span id="badge-all-count" class="tab-badge">0</span>
+              </button>
+              <button type="button" class="org-tab-btn" id="tab-my-broadcasts" onclick="switchOrgBroadcastTab('my')">
+                My Broadcasts <span id="badge-my-count" class="tab-badge">0</span>
+              </button>
+              <button type="button" class="org-tab-btn" id="tab-community-broadcasts" onclick="switchOrgBroadcastTab('community')">
+                Community Broadcasts <span id="badge-community-count" class="tab-badge">0</span>
+              </button>
+            </div>
+            <button type="button" class="btn-outline btn-sm" onclick="loadOrgBroadcasts()" style="display: inline-flex; align-items: center; gap: 5px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+              Refresh Broadcasts
+            </button>
+          </div>
+
+          <!-- Section 1: My Organization Broadcasts -->
+          <div id="section-my-org-broadcasts" class="org-section-wrapper" style="margin-bottom: 2.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.65rem;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <h2 style="font-size: 1.15rem; font-weight: 700; color: #0F172A; margin: 0;">My Organization Broadcasts</h2>
+                  <span id="my-broadcasts-count-tag" style="background: #EEF2FF; color: #4338CA; font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600;">0 active</span>
+                </div>
+                <p style="font-size: 0.82rem; color: #64748B; margin: 4px 0 0 0;">Relief needs broadcasts created and managed by your organization. You have full management controls to record incoming supplies, toggle drive status, or delete.</p>
+              </div>
+            </div>
+            <div id="my-org-broadcasts-container" class="stack-list"></div>
+          </div>
+
+          <!-- Section 2: Community & Partner Broadcasts -->
+          <div id="section-community-org-broadcasts" class="org-section-wrapper">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.65rem;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <h2 style="font-size: 1.15rem; font-weight: 700; color: #0F172A; margin: 0;">Community &amp; Partner Broadcasts</h2>
+                  <span id="community-broadcasts-count-tag" style="background: #F1F5F9; color: #475569; font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600;">0 partner drives</span>
+                </div>
+                <p style="font-size: 0.82rem; color: #64748B; margin: 4px 0 0 0;">Active relief drives published by other campus organizations. Support their initiatives by pledging extra books, materials, and supplies.</p>
+              </div>
+            </div>
+            <div id="community-org-broadcasts-container" class="stack-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================ -->
+      <!-- VIEW 8B: CREATE NEEDS BROADCAST (Spacious Dedicated Full Page)   -->
+      <!-- ================================================================ -->
+      <section id="view-org-create-broadcast" class="view-section hidden">
+        <div class="org-create-workspace">
+          <button type="button" class="back-link" onclick="navigateTo('org-broadcasts')" style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 600; color: #475569; background: none; border: none; cursor: pointer; padding: 0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Needs Broadcasts
+          </button>
+
+          <div class="page-header" style="margin-bottom: 1.75rem;">
+            <div>
+              <h1 id="org-broadcast-page-title" style="font-size: 1.55rem; font-weight: 800; color: #0F172A; margin: 0 0 4px 0;">Create Needs Broadcast</h1>
+              <p id="org-broadcast-page-subtitle" style="font-size: 0.88rem; color: #64748B; margin: 0;">Broadcast emergency community relief needs or ongoing project drives directly to university students on campus.</p>
+            </div>
+          </div>
+
+          <form id="org-broadcast-form" onsubmit="handleCreateOrgBroadcast(event)">
+            <input type="hidden" id="org-broadcast-edit-id" value="" />
+            <!-- Card 1: Urgency & Mode Classification (Compact 4-column row) -->
+            <div class="create-broadcast-card">
+              <div style="margin-bottom: 0.85rem;">
+                <label style="font-weight: 700; font-size: 0.95rem; color: #0F172A; margin: 0 0 2px 0; display: block;">
+                  1. Urgency &amp; Mode Classification <span style="color: #DC2626;">*</span>
+                </label>
+                <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Select the urgency category that best matches your relief drive.</p>
+              </div>
+
+              <div class="urgency-mode-selector-grid">
+                <label class="urgency-mode-card active" id="mode-card-crisis_shelter">
+                  <input type="radio" name="broadcast_urgency_mode" value="crisis_shelter" checked onchange="handleBroadcastModeChange('crisis_shelter')" />
+                  <div class="mode-card-content">
+                    <span class="status-dot dot-red"></span>
+                    <div class="mode-card-text">
+                      <strong>Crisis – Shelter / CFS</strong>
+                      <small>Storybooks, art &amp; games for displaced children</small>
+                    </div>
+                  </div>
+                </label>
+
+                <label class="urgency-mode-card" id="mode-card-crisis_school">
+                  <input type="radio" name="broadcast_urgency_mode" value="crisis_school" onchange="handleBroadcastModeChange('crisis_school')" />
+                  <div class="mode-card-content">
+                    <span class="status-dot dot-amber"></span>
+                    <div class="mode-card-text">
+                      <strong>Crisis – School Recovery</strong>
+                      <small>Textbooks, stationery &amp; backpacks for schools</small>
+                    </div>
+                  </div>
+                </label>
+
+                <label class="urgency-mode-card" id="mode-card-seasonal_drive">
+                  <input type="radio" name="broadcast_urgency_mode" value="seasonal_drive" onchange="handleBroadcastModeChange('seasonal_drive')" />
+                  <div class="mode-card-content">
+                    <span class="status-dot dot-yellow"></span>
+                    <div class="mode-card-text">
+                      <strong>Seasonal Drive</strong>
+                      <small>Winter book drives, back-to-school kits &amp; drives</small>
+                    </div>
+                  </div>
+                </label>
+
+                <label class="urgency-mode-card" id="mode-card-ongoing">
+                  <input type="radio" name="broadcast_urgency_mode" value="ongoing" onchange="handleBroadcastModeChange('ongoing')" />
+                  <div class="mode-card-content">
+                    <span class="status-dot dot-green"></span>
+                    <div class="mode-card-text">
+                      <strong>Ongoing Project</strong>
+                      <small>Community libraries &amp; rural tutoring outreach</small>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Card 2: Drive Overview & Disaster Logistics -->
+            <div class="create-broadcast-card">
+              <div style="margin-bottom: 1.15rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.65rem;">
+                <h3 style="font-weight: 700; font-size: 0.95rem; color: #0F172A; margin: 0 0 2px 0;">
+                  2. Drive Details &amp; Disaster Logistics
+                </h3>
+                <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Specify title, relief site, transportation access condition, and the nearest safe collection hub.</p>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.15rem;">
+                <label for="org-broadcast-title" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
+                  Broadcast Title <span style="color: #DC2626;">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="org-broadcast-title"
+                  class="form-control"
+                  placeholder="e.g. Displaced Children Relief – Helambu Child-Friendly Learning Camp"
+                  required
+                />
+              </div>
+
+              <div class="org-logistics-form-row" style="margin-bottom: 1.15rem;">
+                <div class="form-group">
+                  <label for="org-beneficiary-count" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
+                    Target Beneficiary Count <span style="color: #DC2626;">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    id="org-beneficiary-count"
+                    class="form-control"
+                    value="50"
+                    min="1"
+                    max="10000"
+                    oninput="handleBeneficiaryCountInput()"
+                    onchange="handleBeneficiaryCountChange()"
+                    required
+                  />
+                  <span class="text-muted" style="font-size: 0.78rem; display: block; margin-top: 4px;">Children or students affected</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="org-broadcast-road" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
+                    Road / Access Condition Tag <span style="color: #DC2626;">*</span>
+                  </label>
+                  <select id="org-broadcast-road" class="form-control" required>
+                    <option value="Motorable">Motorable (All Vehicles)</option>
+                    <option value="4WD / Pickup Only" selected>4WD / Pickup Only</option>
+                    <option value="Foot / Porter Trail">Foot / Porter Trail</option>
+                  </select>
+                  <span class="text-muted" style="font-size: 0.78rem; display: block; margin-top: 4px;">Transport feasibility to site</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="org-broadcast-location" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
+                    Location / Relief Camp <span style="color: #DC2626;">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="org-broadcast-location"
+                    class="form-control"
+                    placeholder="e.g. Helambu Ward 2, Sindhupalchok"
+                    required
+                  />
+                  <span class="text-muted" style="font-size: 0.78rem; display: block; margin-top: 4px;">District / municipality or camp</span>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1.15rem;">
+                <label for="org-broadcast-drop-point" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
+                  Nearest Safe Drop-Point <span style="color: #DC2626;">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="org-broadcast-drop-point"
+                  class="form-control"
+                  placeholder="e.g. Chautara Red Cross Logistics Hub / Melamchi Relief Post"
+                  required
+                />
+                <span class="text-muted" style="font-size: 0.78rem; display: block; margin-top: 4px;">Where campus students or volunteers should deliver supplies</span>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 0;">
+                <label for="org-broadcast-desc" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
+                  Situation Overview &amp; Instructions
+                </label>
+                <textarea
+                  id="org-broadcast-desc"
+                  class="form-control"
+                  rows="3"
+                  placeholder="Provide context regarding the displaced children or community needs, specific drop-off hours, or packaging instructions..."
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- Card 3: Needed Supplies Breakdown with Suggestions & Custom Option -->
+            <div class="create-broadcast-card">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.85rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.75rem;">
+                <div>
+                  <h3 style="font-weight: 700; font-size: 0.98rem; color: #0F172A; margin: 0 0 3px 0;">
+                    3. Needed Supplies &amp; Items Breakdown <span style="color: #DC2626;">*</span>
+                  </h3>
+                  <p style="font-size: 0.82rem; color: #64748B; margin: 0;">We've pre-filled recommended supplies below. You can customize quantities, write what you need, or add new items.</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                  <button
+                    type="button"
+                    class="btn-outline btn-sm"
+                    onclick="addCustomItemRowToBroadcastBuilder('', '', 10, 'books')"
+                    style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600;"
+                  >
+                    + Add Custom Item
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-ghost btn-sm"
+                    onclick="resetBroadcastItemsToSuggestions()"
+                    style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: #2563EB;"
+                    title="Reload recommended template items"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                    Reset to Suggestions
+                  </button>
+                </div>
+              </div>
+
+              <!-- Quick Suggestion Chips Box -->
+              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.75rem 0.95rem; margin-bottom: 1.15rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
+                  <span style="font-size: 0.76rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Suggested Items for This Mode (Click to Quick-Add):</span>
+                </div>
+                <div id="broadcast-suggestions-pills" style="display: flex; flex-wrap: wrap; gap: 0.45rem;">
+                  <!-- Injected suggested chips for selected mode -->
+                </div>
+              </div>
+
+              <div class="table-responsive" style="border: 1px solid #E2E8F0; border-radius: 8px; overflow-x: auto;">
+                <table class="table-compact broadcast-builder-table" style="width: 100%; min-width: 660px; border-collapse: collapse; font-size: 0.86rem;">
+                  <thead style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0; text-align: left;">
+                    <tr>
+                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: #475569; width: 25%;">Age Bracket / Category</th>
+                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: #475569; width: 45%;">Item Description (Customizable)</th>
+                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: #475569; width: 14%; text-align: right;">Qty Needed</th>
+                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: #475569; width: 11%;">Unit</th>
+                      <th style="padding: 0.65rem 0.5rem; width: 5%; text-align: center;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="org-broadcast-items-tbody">
+                    <!-- Dynamically generated rows -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Datalists for quick autocomplete while supporting custom free text -->
+              <datalist id="bracket-datalist">
+                <option value="Ages 3–6">
+                <option value="Ages 7–11">
+                <option value="Ages 12–17">
+                <option value="Class 1–5">
+                <option value="Class 6–10">
+                <option value="All Students">
+                <option value="General">
+              </datalist>
+              <datalist id="unit-datalist">
+                <option value="books">
+                <option value="sets">
+                <option value="kits">
+                <option value="notebooks">
+                <option value="packs">
+                <option value="boxes">
+                <option value="bags">
+              </datalist>
+            </div>
+
+            <!-- Sticky / Clear Action Footer -->
+            <div class="create-broadcast-actions-bar">
+              <span style="font-size: 0.84rem; color: #64748B;">Ready to publish? Your broadcast will be immediately visible to all campus students.</span>
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <button type="button" class="btn-outline" onclick="navigateTo('org-broadcasts')">
+                  Cancel
+                </button>
+                <button type="submit" id="org-broadcast-submit-btn" class="btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                  <span id="org-broadcast-submit-btn-text">Publish Needs Broadcast</span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- ================================================================ -->
+      <!-- VIEW 8C: RECORD SUPPLIES / CONTRIBUTE (Dedicated Full Page)        -->
+      <!-- ================================================================ -->
+      <section id="view-org-record-broadcast" class="view-section hidden">
+        <div class="org-create-workspace" style="max-width: 960px; margin: 0 auto; text-align: left;">
+          <button type="button" class="back-link" onclick="handleBackFromRecordPage()" style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 600; color: #475569; background: none; border: none; cursor: pointer; padding: 0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span id="record-page-back-label">Back to Needs Broadcasts</span>
+          </button>
+
+          <div class="page-header" style="margin-bottom: 1.5rem; text-align: left;">
+            <div>
+              <h1 id="record-page-title" style="font-size: 1.55rem; font-weight: 800; color: #0F172A; margin: 0 0 4px 0; text-align: left;">Record Received Supplies</h1>
+              <p id="record-page-subtitle" style="font-size: 0.88rem; color: #64748B; margin: 0; text-align: left;">Enter quantities for any supplies physically received for this drive and save once.</p>
+            </div>
+          </div>
+
+          <!-- Summary Box (Clean Left-Aligned Metadata, No Stray Bullets) -->
+          <div id="record-page-summary-box" class="create-broadcast-card" style="margin-bottom: 1.5rem; text-align: left;">
+            <!-- Dynamically injected summary -->
+          </div>
+
+          <!-- Multi-Item Input List (Side-by-Side Table / Card Rows) -->
+          <div class="create-broadcast-card" style="margin-bottom: 1.5rem; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+              <div>
+                <h3 style="font-weight: 700; font-size: 1rem; color: #0F172A; margin: 0 0 2px 0;">Drive Supply Items &amp; Quantities</h3>
+                <p style="font-size: 0.82rem; color: #64748B; margin: 0;">Enter quantities for the items you are providing or logging. Fulfilled items are locked.</p>
+              </div>
+            </div>
+
+            <div id="record-page-items-list" class="record-items-container">
+              <!-- Dynamically injected items list -->
+            </div>
+          </div>
+
+          <!-- Optional Donor & Note Card (Shown for Owner recording offline/walk-in, or optional note for contributor) -->
+          <div id="record-page-donor-meta" class="create-broadcast-card" style="margin-bottom: 1.5rem; text-align: left;">
+            <div style="margin-bottom: 0.85rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.5rem;">
+              <h3 id="record-meta-heading" style="font-weight: 700; font-size: 0.98rem; color: #0F172A; margin: 0 0 2px 0;">Donor &amp; Delivery Details</h3>
+              <p id="record-meta-sub" style="font-size: 0.82rem; color: #64748B; margin: 0;">Specify who provided these supplies or add delivery memo for the ledger.</p>
+            </div>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div id="record-donor-name-container">
+                <label class="form-label" style="font-size: 0.82rem; font-weight: 600;">Donor / Source Name</label>
+                <input type="text" id="record-donor-name" class="form-control" placeholder="e.g. Campus Rotary Club / Walk-in Donor" />
+              </div>
+              <div>
+                <label class="form-label" style="font-size: 0.82rem; font-weight: 600;">Delivery Note / Memo</label>
+                <input type="text" id="record-donor-notes" class="form-control" placeholder="e.g. Dropped off at South Gate collection point" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Single Batch Confirmation Bar -->
+          <div class="create-broadcast-actions-bar" style="margin-top: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; color: #334155;">
+              <span>Total being added:</span>
+              <strong id="batch-record-total-qty" style="color: #0F172A; font-weight: 800; font-size: 1.05rem;">0</strong>
+              <span>items across</span>
+              <strong id="batch-record-categories-count" style="color: #0F172A; font-weight: 800; font-size: 1.05rem;">0</strong>
+              <span>categories</span>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <button type="button" class="btn-outline" onclick="handleBackFromRecordPage()">
+                Cancel
+              </button>
+              <button
+                type="button"
+                id="batch-record-submit-btn"
+                class="btn-primary"
+                onclick="handleSubmitBatchRecord()"
+                style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700;"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"></path></svg>
+                <span id="batch-record-submit-btn-text">Save Recorded Supplies</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================ -->
+      <!-- VIEW 8D: BROADCAST RECORDS & VERIFICATION LEDGER (Owner / Admin)   -->
+      <!-- ================================================================ -->
+      <section id="view-org-broadcast-records" class="view-section hidden">
+        <div class="org-create-workspace" style="max-width: 1040px; margin: 0 auto; text-align: left;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+            <button type="button" class="back-link" onclick="handleBackFromRecordsLedger()" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; font-weight: 600; color: #475569; background: none; border: none; cursor: pointer; padding: 0;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+              <span>Back to Needs Broadcasts</span>
+            </button>
+            <button type="button" id="export-contributions-csv-btn" class="btn-outline btn-sm" onclick="exportCurrentBroadcastLedgerCsv()" style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Export Records (CSV)
+            </button>
+          </div>
+
+          <div class="page-header" style="margin-bottom: 1.25rem; text-align: left;">
+            <div>
+              <h1 id="records-ledger-title" style="font-size: 1.55rem; font-weight: 800; color: #0F172A; margin: 0 0 4px 0; text-align: left;">Incoming Pledges &amp; Contribution Records</h1>
+              <p style="font-size: 0.88rem; color: #64748B; margin: 0; text-align: left;">Audit trail of all community pledges, physical verifications, and offline receipts for this broadcast.</p>
+            </div>
+          </div>
+
+          <!-- Broadcast Summary Mini Card -->
+          <div id="records-broadcast-summary-card" class="create-broadcast-card" style="margin-bottom: 1.25rem; text-align: left;">
+            <!-- Dynamically populated summary -->
+          </div>
+
+          <!-- Ledger Tabs -->
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 2px solid #E2E8F0; padding-bottom: 0px;">
+            <button
+              type="button"
+              id="tab-btn-pending-pledges"
+              class="records-tab-btn active"
+              onclick="switchRecordsTab('pending')"
+              style="padding: 0.65rem 1.15rem; font-size: 0.88rem; font-weight: 700; border: none; background: none; cursor: pointer; border-bottom: 2px solid #2563EB; color: #2563EB; margin-bottom: -2px; display: inline-flex; align-items: center; gap: 6px;"
+            >
+              <span>Pending Drop-Offs</span>
+              <span id="badge-pending-count" style="background: #FEF3C7; color: #92400E; font-size: 0.74rem; font-weight: 800; padding: 2px 7px; border-radius: 9999px;">0</span>
+            </button>
+            <button
+              type="button"
+              id="tab-btn-verified-ledger"
+              class="records-tab-btn"
+              onclick="switchRecordsTab('verified')"
+              style="padding: 0.65rem 1.15rem; font-size: 0.88rem; font-weight: 600; border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; color: #64748B; margin-bottom: -2px; display: inline-flex; align-items: center; gap: 6px;"
+            >
+              <span>Verified History Ledger</span>
+              <span id="badge-verified-count" style="background: #DCFCE7; color: #166534; font-size: 0.74rem; font-weight: 800; padding: 2px 7px; border-radius: 9999px;">0</span>
+            </button>
+          </div>
+
+          <!-- Tab Pane: Pending Drop-Offs -->
+          <div id="pane-pending-pledges">
+            <div id="pending-pledges-container">
+              <!-- Dynamically populated pending pledges cards -->
+            </div>
+          </div>
+
+          <!-- Tab Pane: Verified History Ledger -->
+          <div id="pane-verified-ledger" class="hidden">
+            <div class="table-responsive" style="border: 1px solid #E2E8F0; border-radius: 10px; background: #FFFFFF; overflow-x: auto;">
+              <table style="width: 100%; min-width: 800px; border-collapse: collapse; font-size: 0.84rem; text-align: left;">
+                <thead style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0; color: #475569; font-weight: 700;">
+                  <tr>
+                    <th style="padding: 0.75rem 0.85rem; width: 14%;">Ref Code</th>
+                    <th style="padding: 0.75rem 0.85rem; width: 16%;">Verified Date</th>
+                    <th style="padding: 0.75rem 0.85rem; width: 20%;">Contributor / Source</th>
+                    <th style="padding: 0.75rem 0.85rem; width: 30%;">Supplies Received</th>
+                    <th style="padding: 0.75rem 0.85rem; width: 20%;">Verified By &amp; Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="verified-ledger-tbody">
+                  <!-- Dynamically populated verified rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================ -->
+      <!-- VIEW 9: MY RELIEF CONTRIBUTIONS (Student & Org History)           -->
+      <!-- ================================================================ -->
+      <section id="view-my-contributions" class="view-section hidden">
+        <div class="org-create-workspace" style="max-width: 960px; margin: 0 auto; text-align: left;">
+          <div class="page-header" style="margin-bottom: 1.5rem; text-align: left;">
+            <div>
+              <h1 style="font-size: 1.55rem; font-weight: 800; color: #0F172A; margin: 0 0 4px 0; text-align: left;">My Relief Contributions &amp; Pledges</h1>
+              <p style="font-size: 0.88rem; color: #64748B; margin: 0; text-align: left;">Track physical drop-off locations, verification status, and reference codes for all supplies you've pledged.</p>
+            </div>
+          </div>
+
+          <div id="my-contributions-container" class="stack-list">
+            <!-- Dynamically populated contribution history cards -->
+          </div>
+        </div>
+      </section>
 
       <!-- ================================================================ -->
       <!-- VIEW 1B: CAMPUS REQUEST FEED (Shared: Student Broadcast & Admin Moderation) -->
@@ -1305,6 +1987,6 @@
   <script>
     window.SHARELOOP_INITIAL_USER = {{ current_user | tojson | safe }};
   </script>
-  <script src="{{ url_for('static', filename='js/app.js') }}?v=14"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}?v=25"></script>
 </body>
 </html>

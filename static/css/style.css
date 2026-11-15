@@ -3064,3 +3064,956 @@ textarea {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ==========================================================================
+   10. ORGANIZATION NEEDS BROADCASTS & CRISIS RELIEF SYSTEM
+   ========================================================================== */
+.badge-yellow {
+  background-color: #FEF9C3;
+  color: #854D0E;
+  border: 1px solid #FEF08A;
+}
+
+/* Urgency Mode Card Selector (Compact 4-column responsive grid with 1-line descriptions) */
+.urgency-mode-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 1024px) {
+  .urgency-mode-selector-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .urgency-mode-selector-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.urgency-mode-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0.7rem 0.85rem;
+  background-color: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 54px;
+  box-sizing: border-box;
+}
+
+.urgency-mode-card:hover {
+  border-color: #94A3B8;
+  background-color: #F8FAFC;
+}
+
+.urgency-mode-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.urgency-mode-card .mode-card-content {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.urgency-mode-card .mode-card-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.urgency-mode-card .mode-card-text strong {
+  display: block;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #0F172A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.urgency-mode-card .mode-card-text small {
+  display: block;
+  font-size: 0.72rem;
+  color: #64748B;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+  margin-top: 2px;
+}
+
+.urgency-mode-card.active {
+  border-color: #2563EB;
+  background-color: #EFF6FF;
+  box-shadow: 0 0 0 1px #2563EB;
+}
+
+.urgency-mode-card#mode-card-crisis_shelter.active {
+  border-color: #DC2626;
+  background-color: #FEF2F2;
+  box-shadow: 0 0 0 1px #DC2626;
+}
+
+.urgency-mode-card#mode-card-crisis_school.active {
+  border-color: #EA580C;
+  background-color: #FFF7ED;
+  box-shadow: 0 0 0 1px #EA580C;
+}
+
+.urgency-mode-card#mode-card-seasonal_drive.active {
+  border-color: #CA8A04;
+  background-color: #FEFCE8;
+  box-shadow: 0 0 0 1px #CA8A04;
+}
+
+.urgency-mode-card#mode-card-ongoing.active {
+  border-color: #16A34A;
+  background-color: #F0FDF4;
+  box-shadow: 0 0 0 1px #16A34A;
+}
+
+/* ==========================================================================
+   14. ORGANIZATION NEEDS BROADCASTS - CRISP MODERN SAAS UI
+   ========================================================================== */
+
+/* Workspace Container - Constrained cleanly on large monitors */
+.org-broadcasts-workspace {
+  max-width: 1120px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Status Dots for badges (replacing emojis) */
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.status-dot.dot-red {
+  background-color: #DC2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+.status-dot.dot-amber {
+  background-color: #EA580C;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
+}
+.status-dot.dot-yellow {
+  background-color: #D97706;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+}
+.status-dot.dot-green {
+  background-color: #16A34A;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+}
+
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.78rem;
+  padding: 0.22rem 0.6rem;
+  letter-spacing: 0.02em;
+}
+
+/* Top KPI Summary Cards - Responsive 4-Column Grid */
+.org-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+@media (max-width: 1024px) {
+  .org-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .org-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.org-kpi-grid .kpi-card {
+  width: 100%;
+  flex: none;
+  min-width: 0;
+  padding: 1.15rem 1.25rem;
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* Organization Broadcast Cards */
+.org-broadcast-card {
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--forest);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.4rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.org-broadcast-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-color: #CBD5E1;
+}
+
+.org-broadcast-card.urgency-crisis_shelter {
+  border-left-color: #DC2626 !important;
+  border-color: #FCA5A5;
+}
+
+.org-broadcast-card.urgency-crisis_school {
+  border-left-color: #EA580C !important;
+  border-color: #FDBA74;
+}
+
+.org-broadcast-card.urgency-seasonal_drive {
+  border-left-color: #CA8A04 !important;
+  border-color: #FDE047;
+}
+
+.org-broadcast-card.urgency-ongoing {
+  border-left-color: #16A34A !important;
+  border-color: #86EFAC;
+}
+
+/* 1. Header Row: Status badge left, timestamp right on same line */
+.org-broadcast-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.org-header-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.broadcast-timestamp {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-important {
+  background-color: #FEF2F2;
+  color: #991B1B;
+  border: 1px solid #FCA5A5;
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.55rem;
+}
+
+/* 2. Title & Entity Metadata */
+.org-broadcast-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.org-broadcast-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.85rem;
+  color: #475569;
+  flex-wrap: wrap;
+}
+
+.meta-org-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #1E293B;
+  font-weight: 600;
+}
+
+.meta-org-name svg {
+  color: #64748B;
+  flex-shrink: 0;
+}
+
+.badge-verified {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.meta-beneficiary-count {
+  font-size: 0.82rem;
+  color: #64748B;
+}
+
+.org-broadcast-desc {
+  font-size: 0.88rem;
+  color: #475569;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* 3. Structured 3-Column Logistics Metadata Row */
+.org-logistics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+}
+
+@media (max-width: 768px) {
+  .org-logistics-grid {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+}
+
+.logistics-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.logistics-col-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748B;
+}
+
+.logistics-col-label svg {
+  color: #94A3B8;
+  flex-shrink: 0;
+}
+
+.logistics-col-value {
+  font-size: 0.85rem;
+  color: #1E293B;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logistics-col-value.font-medium {
+  font-weight: 600;
+}
+
+/* 4. Live Fulfillment Progress: Label and percentage neatly grouped */
+.fulfillment-progress-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.1rem 0;
+}
+
+.fulfillment-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.84rem;
+}
+
+.fulfillment-label-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.fulfillment-label-group .progress-title {
+  font-weight: 600;
+  color: #475569;
+}
+
+.fulfillment-label-group .progress-counts {
+  color: #0F172A;
+}
+
+.fulfillment-progress-header .progress-percentage {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.fulfillment-progress-header .progress-percentage.text-success {
+  color: #16A34A;
+}
+
+.fulfillment-progress-header .progress-percentage.text-primary {
+  color: #2563EB;
+}
+
+.fulfillment-progress-track {
+  width: 100%;
+  height: 8px;
+  background-color: #E2E8F0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.fulfillment-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+  background: #059669;
+}
+
+.urgency-crisis_shelter .fulfillment-progress-fill {
+  background: #DC2626;
+}
+
+.urgency-crisis_school .fulfillment-progress-fill {
+  background: #EA580C;
+}
+
+.urgency-seasonal_drive .fulfillment-progress-fill {
+  background: #D97706;
+}
+
+.urgency-ongoing .fulfillment-progress-fill {
+  background: #16A34A;
+}
+
+/* 5. Needed Supplies - Responsive 3-Column CSS Grid */
+.broadcast-supplies-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.supplies-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+}
+
+.supplies-stats {
+  font-weight: 600;
+  color: #64748B;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.broadcast-items-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 960px) {
+  .broadcast-items-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .broadcast-items-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.broadcast-item-card {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 94px;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.broadcast-item-card:hover {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.broadcast-item-card.is-fulfilled {
+  background: #F0FDF4;
+  border-color: #BBF7D0;
+}
+
+.broadcast-item-card .item-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.broadcast-item-card .item-bracket-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748B;
+  background: #F1F5F9;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 65%;
+}
+
+.broadcast-item-card.is-fulfilled .item-bracket-tag {
+  background: #DCFCE7;
+  color: #166534;
+}
+
+.broadcast-item-card .item-progress-ratio {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #2563EB;
+}
+
+.broadcast-item-card .item-progress-ratio.fulfilled {
+  color: #16A34A;
+}
+
+.broadcast-item-card .item-card-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0F172A;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.broadcast-item-card .item-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.35rem;
+  border-top: 1px dashed #E2E8F0;
+}
+
+.broadcast-item-card.is-fulfilled .item-card-bottom {
+  border-top-color: #DCFCE7;
+}
+
+.broadcast-item-card .item-remaining-pill {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: #DC2626;
+}
+
+.broadcast-item-card .item-remaining-pill.fulfilled {
+  color: #16A34A;
+  font-weight: 600;
+}
+
+.broadcast-item-card .item-unit-tag {
+  font-size: 0.72rem;
+  color: #64748B;
+}
+
+/* 6. Card Action Footer */
+.org-broadcast-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #E2E8F0;
+  flex-wrap: wrap;
+}
+
+.footer-meta-text {
+  font-size: 0.8rem;
+  color: #64748B;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Tabs Bar & Section Styling for Organization Broadcasts */
+.org-tabs-bar {
+  display: inline-flex;
+  background: #F1F5F9;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  gap: 2px;
+}
+
+.org-tab-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #64748B;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.org-tab-btn:hover {
+  color: #0F172A;
+}
+
+.org-tab-btn.active {
+  background: #FFFFFF;
+  color: #0F172A;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.tab-badge {
+  background: #E2E8F0;
+  color: #475569;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+.org-tab-btn.active .tab-badge {
+  background: #EEF2FF;
+  color: #4338CA;
+}
+
+.org-section-wrapper {
+  transition: opacity 0.2s ease;
+}
+
+/* Dedicated Create Needs Broadcast Full Page Workspace */
+.org-create-workspace {
+  max-width: 1040px;
+  margin: 0 auto;
+  width: 100%;
+  padding-bottom: 3.5rem;
+}
+
+.create-broadcast-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.create-broadcast-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.15rem 1.5rem;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  gap: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  bottom: 1rem;
+  z-index: 20;
+}
+
+.org-logistics-form-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .org-logistics-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Clean, modern styling for numeric and form controls (fixes default harsh browser borders) */
+input[type="number"].form-control,
+.form-group input[type="number"],
+.form-control {
+  width: 100%;
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  padding: 0.62rem 0.85rem;
+  font-size: 0.88rem;
+  color: #0F172A;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+input[type="number"].form-control:focus,
+.form-group input[type="number"]:focus,
+.form-control:focus {
+  outline: none;
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* Fulfill / Record Supplies Modal Polish (Strict Left Alignment) */
+.modal-card.modal-card-fulfill {
+  max-width: 530px;
+  text-align: left;
+  padding: 1.6rem 1.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+}
+
+.modal-close-icon-btn {
+  background: transparent;
+  border: none;
+  color: #64748B;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.modal-close-icon-btn:hover {
+  color: #0F172A;
+  background-color: #F1F5F9;
+}
+
+#org-fulfill-item-select {
+  text-overflow: ellipsis;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+/* Broadcast Builder Table & Suggestion Chips */
+.broadcast-builder-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.broadcast-builder-table th,
+.broadcast-builder-table td {
+  vertical-align: middle;
+}
+
+.broadcast-builder-table .item-bracket-input {
+  min-width: 130px;
+}
+
+.broadcast-builder-table .item-name-input {
+  min-width: 220px;
+}
+
+.broadcast-builder-table .item-qty-input {
+  min-width: 75px;
+  text-align: right;
+}
+
+.broadcast-builder-table .item-unit-input {
+  min-width: 80px;
+}
+
+.suggestion-chip-btn {
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  color: #334155;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.suggestion-chip-btn:hover {
+  background: #EEF2FF;
+  border-color: #A5B4FC;
+  color: #312E81;
+}
+
+.suggestion-chip-btn svg {
+  color: #6366F1;
+}
+
+/* Multi-Item Batch Record & Contribute Page */
+.record-items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.record-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.95rem 1.15rem;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  gap: 1rem;
+  transition: all 0.15s ease;
+}
+
+.record-item-row:hover {
+  border-color: #CBD5E1;
+  background: #FAFAFA;
+}
+
+.record-item-row.is-fulfilled {
+  background: #F8FAFC;
+  opacity: 0.8;
+  border-color: #E2E8F0;
+}
+
+.record-item-left {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.record-item-right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+.record-qty-stepper-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stepper-btn {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #334155;
+  transition: all 0.1s ease;
+  user-select: none;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  color: #0F172A;
+}
+
+.stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.fill-remaining-btn {
+  font-size: 0.75rem;
+  color: #2563EB;
+  font-weight: 600;
+  padding: 4px 8px;
+  border: 1px dashed #BFDBFE;
+  border-radius: 6px;
+  background: #EFF6FF;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.fill-remaining-btn:hover {
+  background: #DBEAFE;
+  border-color: #93C5FD;
+}
+
+@media (max-width: 640px) {
+  .record-item-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .record-item-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* Records & Ledger Tab Styling */
+.records-tab-btn {
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.records-tab-btn:hover {
+  color: #0F172A !important;
+  background-color: #F8FAFC;
+  border-radius: 6px 6px 0 0;
+}
+
+
+
+
+

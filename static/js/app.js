@@ -209,6 +209,11 @@ function navigateTo(viewName) {
   const navMap = {
     'browse': 'nav-browse',
     'feed': (currentUser && currentUser.role === 'Admin') ? 'nav-admin-feed' : 'nav-feed',
+    'org-broadcasts': 'nav-org-broadcasts',
+    'org-create-broadcast': 'nav-org-broadcasts',
+    'org-record-broadcast': (currentUser && currentUser.role === 'Organization') ? 'nav-org-broadcasts' : 'nav-feed',
+    'org-broadcast-records': 'nav-org-broadcasts',
+    'my-contributions': 'nav-my-contributions',
     'my-listings': 'nav-my-listings',
     'add-resource': 'nav-my-listings',
     'my-requests': 'nav-my-requests',
@@ -237,6 +242,12 @@ function navigateTo(viewName) {
   // Trigger contextual data fetch
   if (viewName === 'browse') {
     loadBrowseItems();
+  } else if (viewName === 'org-broadcasts') {
+    loadOrgBroadcasts();
+  } else if (viewName === 'org-create-broadcast') {
+    initOrgCreateBroadcastView();
+  } else if (viewName === 'my-contributions') {
+    loadMyContributions();
   } else if (viewName === 'feed' || viewName === 'admin-feed') {
     syncUserHeaderAndComposer();
     loadFeedWorkspace();
@@ -800,6 +811,8 @@ function ensureFeedSyncTimer() {
   feedSyncTimer = setInterval(() => {
     if (currentView === 'feed' || currentView === 'admin-feed') {
       loadFeedWorkspace(true);
+    } else if (currentView === 'org-broadcasts') {
+      loadOrgBroadcasts(true);
     }
   }, 2500);
 }
@@ -815,26 +828,33 @@ async function loadFeedWorkspace(isSilent = false) {
     if (!res.ok) return;
     const data = await res.json();
     const newItems = data.feed_requests || data.items || [];
+    const orgBroadcasts = data.org_broadcasts || [];
+    cachedFeedOrgBroadcasts = orgBroadcasts;
 
-    // Checksum based on IDs to prevent unnecessary DOM re-rendering & flickering
-    const newChecksum = newItems.map(p => `${p.id}-${p.is_active}`).join('|');
+    // Checksum based on student request IDs + org broadcasts to prevent unnecessary DOM re-rendering & flickering
+    const newChecksum = [
+      ...newItems.map(p => `${p.id}-${p.is_active}`),
+      ...orgBroadcasts.map(b => `${b.id}-${b.items_secured}-${b.is_active}`)
+    ].join('|');
+
     if (isSilent && newChecksum === cachedFeedChecksum && container.children.length > 0) {
       return;
     }
     cachedFeedChecksum = newChecksum;
     feedRequestsList = newItems;
 
-    if (feedRequestsList.length === 0) {
+    if (feedRequestsList.length === 0 && orgBroadcasts.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
           <h3>No active campus requests right now</h3>
-          <p>${(currentUser && currentUser.role === 'Admin') ? 'There are currently no active student broadcast requests in the system.' : 'Click the status box above to broadcast a textbook, calculator, or lab item you need!'}</p>
+          <p>${(currentUser && currentUser.role === 'Admin') ? 'There are currently no active student broadcast requests or community relief drives in the system.' : 'Click the status box above to broadcast a textbook, calculator, or lab item you need!'}</p>
         </div>
       `;
       return;
     }
 
-    container.innerHTML = feedRequestsList.map(post => {
+    const orgCardsHtml = orgBroadcasts.map(b => renderOrgBroadcastCard(b, false)).join('');
+    const studentCardsHtml = feedRequestsList.map(post => {
       const isMine = currentUser && post.student_id === currentUser.id;
       return `
         <article class="feed-card" id="feed-card-${post.id}">
@@ -870,6 +890,8 @@ async function loadFeedWorkspace(isSilent = false) {
         </article>
       `;
     }).join('');
+
+    container.innerHTML = orgCardsHtml + studentCardsHtml;
   } catch (err) {
     if (!isSilent) console.error('Error loading feed workspace:', err);
   }
@@ -2379,4 +2401,1648 @@ function escapeAttr(str) {
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "\\'")
     .replace(/"/g, '&quot;');
+}
+
+// --------------------------------------------------------------------------
+// 13. ORGANIZATION NEEDS BROADCASTS & DISASTER RELIEF LOGISTICS ENGINE
+// --------------------------------------------------------------------------
+let cachedOrgBroadcasts = [];
+let cachedFeedOrgBroadcasts = [];
+let selectedBroadcastMode = 'crisis_shelter';
+let editingBroadcastId = null;
+let activeRecordBroadcast = null;
+let recordPageReturnView = 'org-broadcasts';
+
+const PRESET_BROADCAST_TEMPLATES = {
+  crisis_shelter: {
+    title: 'Displaced Children CFS & Psychosocial Relief Drive',
+    desc: 'Immediate emergency child-friendly learning kits, picture books, and games for displaced children in temporary shelter camps.',
+    items: (count) => [
+      { age_bracket: 'Ages 3–6 (Early Childhood)', item_name: 'Storybooks & Picture Books (Nepali & English)', quantity_needed: Math.max(5, Math.round(count * 0.4)), unit: 'books' },
+      { age_bracket: 'Ages 7–11 (Primary Years)', item_name: 'Drawing Pads, Pencils & Coloring Markers', quantity_needed: Math.max(5, Math.round(count * 0.4)), unit: 'sets' },
+      { age_bracket: 'Ages 12–17 (Adolescents & Youth)', item_name: 'Expressive Writing Journals & Ballpoint Pens', quantity_needed: Math.max(5, Math.round(count * 0.3)), unit: 'sets' }
+    ]
+  },
+  crisis_school: {
+    title: 'Emergency School Restoration & Curriculum Recovery Drive',
+    desc: 'Replacing damaged curriculum textbooks, exercise notebooks, and essential school supplies for disaster-impacted schools.',
+    items: (count) => [
+      { age_bracket: 'Class 1–10 (Core Curriculum)', item_name: 'Curriculum Textbooks (Govt / CDC Curriculum)', quantity_needed: Math.max(10, Math.round(count * 1.5)), unit: 'books' },
+      { age_bracket: 'All Students', item_name: 'Exercise Notebooks (Ruled, Grid & Plain)', quantity_needed: Math.max(20, Math.round(count * 3.0)), unit: 'notebooks' },
+      { age_bracket: 'All Students', item_name: 'Stationery Kits (Geometry Box, Pens, Pencils, Erasers)', quantity_needed: Math.max(10, count), unit: 'kits' },
+      { age_bracket: 'All Students', item_name: 'Sturdy Waterproof School Backpacks', quantity_needed: Math.max(5, Math.round(count * 0.8)), unit: 'backpacks' }
+    ]
+  },
+  seasonal_drive: {
+    title: 'Winter Educational Book Drive & Warm Study Supplies',
+    desc: 'Seasonal collection of reference books, winter storybooks, and writing supplies for underprivileged students.',
+    items: (count) => [
+      { age_bracket: 'General Education', item_name: 'Winter Story & Literature Book Bundles', quantity_needed: Math.max(10, Math.round(count * 0.8)), unit: 'bundles' },
+      { age_bracket: 'General Education', item_name: 'Writing Notebooks & Stationery Bundles', quantity_needed: Math.max(10, count), unit: 'packs' }
+    ]
+  },
+  ongoing: {
+    title: 'Community Learning Library & Rural Tutoring Hub Support',
+    desc: 'Sustained community library development and permanent reference material collection.',
+    items: (count) => [
+      { age_bracket: 'Children Section', item_name: 'Children Literature & Illustrated Storybooks', quantity_needed: Math.max(10, Math.round(count * 0.6)), unit: 'books' },
+      { age_bracket: 'Community Library', item_name: 'English & Nepali Reference Dictionaries & Encyclopedias', quantity_needed: Math.max(2, Math.round(count * 0.15)), unit: 'books' }
+    ]
+  }
+};
+
+const SUGGESTED_CHIPS_BY_MODE = {
+  crisis_shelter: [
+    { age_bracket: 'Ages 3–6 (Early Childhood)', item_name: 'Coloring Books & Crayon Sets', quantity: 20, unit: 'sets' },
+    { age_bracket: 'Ages 7–11 (Primary Years)', item_name: 'Board Games (Ludo, Chess, Snakes & Ladders)', quantity: 8, unit: 'games' },
+    { age_bracket: 'Ages 12–17 (Adolescents & Youth)', item_name: 'Adolescent Fiction & Science Books', quantity: 15, unit: 'books' }
+  ],
+  crisis_school: [
+    { age_bracket: 'All Students', item_name: 'Waterproof School Backpacks', quantity: 25, unit: 'backpacks' },
+    { age_bracket: 'Class 6–10 (Secondary)', item_name: 'Geometry & Instrument Boxes', quantity: 25, unit: 'boxes' }
+  ],
+  seasonal_drive: [
+    { age_bracket: 'General', item_name: 'Winter Storybooks Bundle', quantity: 30, unit: 'bundles' }
+  ],
+  ongoing: [
+    { age_bracket: 'General', item_name: 'Children Literature & Illustrated Books', quantity: 20, unit: 'books' }
+  ]
+};
+
+function openOrgBroadcastModal() {
+  editingBroadcastId = null;
+  const editIdInput = document.getElementById('org-broadcast-edit-id');
+  if (editIdInput) editIdInput.value = '';
+  navigateTo('org-create-broadcast');
+}
+
+function closeOrgBroadcastModal() {
+  editingBroadcastId = null;
+  const editIdInput = document.getElementById('org-broadcast-edit-id');
+  if (editIdInput) editIdInput.value = '';
+  navigateTo('org-broadcasts');
+}
+
+function initOrgCreateBroadcastView() {
+  if (editingBroadcastId) {
+    // Mode and fields are already set up by openOrgEditBroadcast
+    return;
+  }
+
+  const titleEl = document.getElementById('org-broadcast-page-title');
+  const subtitleEl = document.getElementById('org-broadcast-page-subtitle');
+  const submitBtnText = document.getElementById('org-broadcast-submit-btn-text');
+  const editIdInput = document.getElementById('org-broadcast-edit-id');
+
+  if (titleEl) titleEl.textContent = 'Create Needs Broadcast';
+  if (subtitleEl) subtitleEl.textContent = 'Broadcast emergency community relief needs or ongoing project drives directly to university students on campus.';
+  if (submitBtnText) submitBtnText.textContent = 'Publish Needs Broadcast';
+  if (editIdInput) editIdInput.value = '';
+
+  selectedBroadcastMode = 'crisis_shelter';
+
+  const countInput = document.getElementById('org-beneficiary-count');
+  if (countInput && (!countInput.value || parseInt(countInput.value, 10) < 1)) {
+    countInput.value = '50';
+  }
+
+  handleBroadcastModeChange('crisis_shelter');
+}
+
+async function openOrgEditBroadcast(broadcastId) {
+  const allBroadcasts = [...cachedOrgBroadcasts, ...cachedFeedOrgBroadcasts];
+  let b = allBroadcasts.find(x => x.id === broadcastId);
+  if (!b) {
+    try {
+      const res = await fetch(`/api/org/broadcasts/${broadcastId}`);
+      if (res.ok) {
+        const data = await res.json();
+        b = data.broadcast;
+      }
+    } catch (err) {
+      console.error('Error fetching broadcast for editing:', err);
+    }
+  }
+  if (!b) {
+    showToast('Broadcast not found.', true);
+    return;
+  }
+
+  editingBroadcastId = broadcastId;
+
+  const titleEl = document.getElementById('org-broadcast-page-title');
+  const subtitleEl = document.getElementById('org-broadcast-page-subtitle');
+  const submitBtnText = document.getElementById('org-broadcast-submit-btn-text');
+  const editIdInput = document.getElementById('org-broadcast-edit-id');
+
+  if (titleEl) titleEl.textContent = 'Edit Needs Broadcast';
+  if (subtitleEl) subtitleEl.textContent = 'Update logistics, beneficiary count, or needed supplies for this drive.';
+  if (submitBtnText) submitBtnText.textContent = 'Save Broadcast Changes';
+  if (editIdInput) editIdInput.value = broadcastId;
+
+  selectedBroadcastMode = b.urgency_mode || 'crisis_shelter';
+  document.querySelectorAll('.urgency-mode-card').forEach(card => card.classList.remove('active'));
+  const activeCard = document.getElementById(`mode-card-${selectedBroadcastMode}`);
+  if (activeCard) activeCard.classList.add('active');
+  const radio = document.querySelector(`input[name="broadcast_urgency_mode"][value="${selectedBroadcastMode}"]`);
+  if (radio) radio.checked = true;
+
+  const titleInput = document.getElementById('org-broadcast-title');
+  const descInput = document.getElementById('org-broadcast-desc');
+  const countInput = document.getElementById('org-beneficiary-count');
+  const roadSelect = document.getElementById('org-broadcast-road');
+  const locInput = document.getElementById('org-broadcast-location');
+  const dropInput = document.getElementById('org-broadcast-drop-point');
+
+  if (titleInput) titleInput.value = b.title || '';
+  if (descInput) descInput.value = b.description || '';
+  if (countInput) countInput.value = b.beneficiary_count || 50;
+  if (roadSelect) roadSelect.value = b.road_condition || 'Motorable';
+  if (locInput) locInput.value = b.location || '';
+  if (dropInput) dropInput.value = b.safe_drop_point || '';
+
+  const tbody = document.getElementById('org-broadcast-items-tbody');
+  if (tbody) {
+    tbody.innerHTML = '';
+    (b.items || []).forEach(it => {
+      addCustomItemRowToBroadcastBuilder(it.age_bracket, it.item_name, it.quantity_needed, it.unit, it.id, it.quantity_secured);
+    });
+  }
+
+  renderSuggestionPills(selectedBroadcastMode);
+  navigateTo('org-create-broadcast');
+}
+
+function handleBroadcastModeChange(mode) {
+  selectedBroadcastMode = mode;
+  document.querySelectorAll('.urgency-mode-card').forEach(card => card.classList.remove('active'));
+  const activeCard = document.getElementById(`mode-card-${mode}`);
+  if (activeCard) activeCard.classList.add('active');
+
+  const radio = document.querySelector(`input[name="broadcast_urgency_mode"][value="${mode}"]`);
+  if (radio) radio.checked = true;
+
+  const titleInput = document.getElementById('org-broadcast-title');
+  const descInput = document.getElementById('org-broadcast-desc');
+  const template = PRESET_BROADCAST_TEMPLATES[mode];
+  if (template) {
+    if (titleInput && (!titleInput.value || titleInput.value.includes('Relief') || titleInput.value.includes('Drive') || titleInput.value.includes('Support') || titleInput.value.includes('CFS') || titleInput.value.includes('Hub') || titleInput.value.includes('Library') || titleInput.value.includes('Restoration'))) {
+      titleInput.value = template.title;
+    }
+    if (descInput && (!descInput.value || descInput.value.includes('emergency') || descInput.value.includes('collection') || descInput.value.includes('support') || descInput.value.includes('kits') || descInput.value.includes('displaced') || descInput.value.includes('curriculum') || descInput.value.includes('library') || descInput.value.includes('Replacing') || descInput.value.includes('Seasonal'))) {
+      descInput.value = template.desc;
+    }
+  }
+
+  // Populate recommended items and quick-add pills for the selected mode
+  resetBroadcastItemsToSuggestions();
+}
+
+function handleBeneficiaryCountInput() {
+  const countInput = document.getElementById('org-beneficiary-count');
+  if (!countInput) return;
+  let val = parseInt(countInput.value, 10);
+  if (isNaN(val) || val < 1) val = 1;
+  if (val > 100000) val = 100000;
+  countInput.value = val;
+  renderSuggestionPills(selectedBroadcastMode);
+}
+
+function handleBeneficiaryCountChange() {
+  handleBeneficiaryCountInput();
+}
+
+function resetBroadcastItemsToSuggestions() {
+  const tbody = document.getElementById('org-broadcast-items-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const countInput = document.getElementById('org-beneficiary-count');
+  const count = parseInt(countInput ? countInput.value : 50, 10) || 50;
+  const template = PRESET_BROADCAST_TEMPLATES[selectedBroadcastMode] || PRESET_BROADCAST_TEMPLATES.crisis_shelter;
+  const items = template.items(count);
+
+  items.forEach(item => {
+    addCustomItemRowToBroadcastBuilder(item.age_bracket, item.item_name, item.quantity_needed, item.unit);
+  });
+
+  renderSuggestionPills(selectedBroadcastMode);
+}
+
+function renderSuggestionPills(mode) {
+  const container = document.getElementById('broadcast-suggestions-pills');
+  if (!container) return;
+
+  const chips = SUGGESTED_CHIPS_BY_MODE[mode] || SUGGESTED_CHIPS_BY_MODE.crisis_shelter || [];
+  if (!chips.length) {
+    container.innerHTML = '<span style="font-size: 0.8rem; color: #94A3B8;">Use the "+ Add Custom Item" button below to add custom items.</span>';
+    return;
+  }
+
+  container.innerHTML = chips.map((item, idx) => `
+    <button
+      type="button"
+      class="suggestion-chip-btn"
+      onclick="addSuggestedItemFromChip('${mode}', ${idx})"
+      title="Click to add '${escapeAttr(item.item_name)}' to needed supplies list"
+    >
+      <span>+ ${escapeHtml(item.item_name)}</span>
+      <span style="opacity: 0.65; font-size: 0.72rem;">(${item.quantity} ${escapeHtml(item.unit)})</span>
+    </button>
+  `).join('');
+}
+
+function addSuggestedItemFromChip(mode, idx) {
+  const chips = SUGGESTED_CHIPS_BY_MODE[mode] || SUGGESTED_CHIPS_BY_MODE[selectedBroadcastMode] || [];
+  const item = chips[idx];
+  if (!item) return;
+
+  addCustomItemRowToBroadcastBuilder(item.age_bracket, item.item_name, item.quantity, item.unit);
+  showToast(`Added "${item.item_name}" to needed supplies list`);
+}
+
+function applySelectedPresetTemplate() {
+  resetBroadcastItemsToSuggestions();
+}
+
+const STANDARD_BRACKETS = [
+  'Ages 3–6 (Early Childhood)',
+  'Ages 7–11 (Primary Years)',
+  'Ages 12–17 (Adolescents & Youth)',
+  'Class 1–5 (Primary)',
+  'Class 6–10 (Secondary)',
+  'All Students',
+  'General'
+];
+
+function findMatchingStandardBracket(val) {
+  if (!val) return '';
+  const cleanVal = val.replace(/–/g, '-').trim().toLowerCase();
+  for (const b of STANDARD_BRACKETS) {
+    if (b.replace(/–/g, '-').trim().toLowerCase() === cleanVal) {
+      return b;
+    }
+  }
+  if (cleanVal.includes('3-6') || cleanVal.includes('3–6')) return 'Ages 3–6 (Early Childhood)';
+  if (cleanVal.includes('7-11') || cleanVal.includes('7–11')) return 'Ages 7–11 (Primary Years)';
+  if (cleanVal.includes('12-17') || cleanVal.includes('12–17')) return 'Ages 12–17 (Adolescents & Youth)';
+  if (cleanVal.includes('1-5') || cleanVal.includes('1–5')) return 'Class 1–5 (Primary)';
+  if (cleanVal.includes('6-10') || cleanVal.includes('6–10')) return 'Class 6–10 (Secondary)';
+  if (cleanVal.includes('all student')) return 'All Students';
+  if (cleanVal.includes('general')) return 'General';
+  return '';
+}
+
+function handleBracketSelectChange(selectEl) {
+  const container = selectEl.closest('td') || selectEl.parentElement;
+  const customInput = container.querySelector('.item-bracket-custom-input');
+  if (!customInput) return;
+  if (selectEl.value === '__custom__') {
+    customInput.style.display = 'block';
+    customInput.focus();
+  } else {
+    customInput.style.display = 'none';
+  }
+}
+
+function addCustomItemRowToBroadcastBuilder(bracket = '', name = '', qty = 10, unit = 'books', itemId = null, quantitySecured = 0) {
+  const tbody = document.getElementById('org-broadcast-items-tbody');
+  if (!tbody) return;
+
+  const safeBracket = bracket || '';
+  const safeName = name || '';
+  const safeQty = parseInt(qty, 10) || 10;
+  const safeUnit = unit || 'books';
+
+  const matchedBracket = findMatchingStandardBracket(safeBracket);
+  const isCustom = !matchedBracket && Boolean(safeBracket);
+  const selectedSelectValue = matchedBracket ? matchedBracket : (isCustom ? '__custom__' : 'Ages 3–6 (Early Childhood)');
+
+  const tr = document.createElement('tr');
+  tr.className = 'broadcast-item-row';
+  if (itemId) tr.dataset.itemId = itemId;
+  if (quantitySecured) tr.dataset.secured = quantitySecured;
+
+  tr.innerHTML = `
+    <td style="padding: 0.5rem 0.6rem; vertical-align: top;">
+      <select class="form-control item-bracket-select" onchange="handleBracketSelectChange(this)" style="font-size: 0.82rem; padding: 0.35rem 0.5rem; width: 100%; box-sizing: border-box; cursor: pointer;">
+        <option value="Ages 3–6 (Early Childhood)">Ages 3–6 (Early Childhood)</option>
+        <option value="Ages 7–11 (Primary Years)">Ages 7–11 (Primary Years)</option>
+        <option value="Ages 12–17 (Adolescents & Youth)">Ages 12–17 (Adolescents & Youth)</option>
+        <option value="Class 1–5 (Primary)">Class 1–5 (Primary)</option>
+        <option value="Class 6–10 (Secondary)">Class 6–10 (Secondary)</option>
+        <option value="All Students">All Students</option>
+        <option value="General">General</option>
+        <option value="__custom__">Custom / Type own...</option>
+      </select>
+      <input
+        type="text"
+        class="form-control item-bracket-custom-input"
+        list="bracket-datalist"
+        value="${escapeAttr(isCustom ? safeBracket : '')}"
+        placeholder="Type custom category..."
+        style="display: ${isCustom ? 'block' : 'none'}; margin-top: 5px; font-size: 0.8rem; padding: 0.3rem 0.45rem; width: 100%; box-sizing: border-box;"
+      />
+    </td>
+    <td style="padding: 0.5rem 0.6rem; vertical-align: top;">
+      <input type="text" class="form-control item-name-input" value="${escapeAttr(safeName)}" placeholder="Item description / supply name (write what you need)" style="font-size: 0.82rem; padding: 0.35rem 0.5rem; width: 100%; box-sizing: border-box;" required />
+    </td>
+    <td style="padding: 0.5rem 0.6rem; vertical-align: top;">
+      <input type="number" class="form-control item-qty-input" value="${safeQty}" min="1" max="100000" style="font-size: 0.82rem; padding: 0.35rem 0.5rem; text-align: right; font-weight: 700; width: 100%; box-sizing: border-box;" required />
+    </td>
+    <td style="padding: 0.5rem 0.6rem; vertical-align: top;">
+      <input type="text" class="form-control item-unit-input" list="unit-datalist" value="${escapeAttr(safeUnit)}" placeholder="books, sets, kits" style="font-size: 0.82rem; padding: 0.35rem 0.5rem; width: 100%; box-sizing: border-box;" required />
+    </td>
+    <td style="padding: 0.5rem 0.4rem; text-align: center; vertical-align: top;">
+      <button type="button" class="btn-outline btn-sm" onclick="removeBroadcastItemRow(this)" style="color: #DC2626; border-color: #FECACA; padding: 0.25rem 0.45rem; line-height: 1;" title="Remove Item">&times;</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+
+  // Directly assign DOM property values to guarantee they render visibly
+  const bracketSelect = tr.querySelector('.item-bracket-select');
+  const customBracketInput = tr.querySelector('.item-bracket-custom-input');
+  const nameInput = tr.querySelector('.item-name-input');
+  const qtyInput = tr.querySelector('.item-qty-input');
+  const unitInput = tr.querySelector('.item-unit-input');
+
+  if (bracketSelect) bracketSelect.value = selectedSelectValue;
+  if (customBracketInput) customBracketInput.value = isCustom ? safeBracket : '';
+  if (nameInput) nameInput.value = safeName;
+  if (qtyInput) qtyInput.value = safeQty;
+  if (unitInput) unitInput.value = safeUnit;
+}
+
+function removeBroadcastItemRow(btn) {
+  const tr = btn.closest('tr');
+  if (tr) tr.remove();
+}
+
+function collectBroadcastItemsFromBuilder() {
+  const rows = document.querySelectorAll('#org-broadcast-items-tbody tr.broadcast-item-row');
+  const items = [];
+  rows.forEach(tr => {
+    const selectEl = tr.querySelector('.item-bracket-select');
+    const customInput = tr.querySelector('.item-bracket-custom-input');
+    let bracket = 'General';
+    if (selectEl) {
+      if (selectEl.value === '__custom__') {
+        bracket = (customInput?.value || '').trim() || 'Custom';
+      } else {
+        bracket = selectEl.value.trim();
+      }
+    } else {
+      bracket = (tr.querySelector('.item-bracket-input')?.value || 'General').trim();
+    }
+
+    const name = (tr.querySelector('.item-name-input')?.value || '').trim();
+    const qty = parseInt(tr.querySelector('.item-qty-input')?.value, 10) || 1;
+    const unit = (tr.querySelector('.item-unit-input')?.value || 'items').trim();
+    if (name) {
+      const itemObj = {
+        age_bracket: bracket,
+        item_name: name,
+        quantity_needed: qty,
+        unit: unit
+      };
+      if (tr.dataset.itemId) {
+        itemObj.id = parseInt(tr.dataset.itemId, 10);
+      }
+      if (tr.dataset.secured) {
+        itemObj.quantity_secured = parseInt(tr.dataset.secured, 10);
+      }
+      items.push(itemObj);
+    }
+  });
+  return items;
+}
+
+async function handleCreateOrgBroadcast(event) {
+  event.preventDefault();
+  const editId = document.getElementById('org-broadcast-edit-id')?.value || editingBroadcastId;
+  const title = (document.getElementById('org-broadcast-title')?.value || '').trim();
+  const roadCondition = document.getElementById('org-broadcast-road')?.value || 'Motorable';
+  const location = (document.getElementById('org-broadcast-location')?.value || '').trim();
+  const safeDropPoint = (document.getElementById('org-broadcast-drop-point')?.value || '').trim();
+  const description = (document.getElementById('org-broadcast-desc')?.value || '').trim();
+  const beneficiaryCount = parseInt(document.getElementById('org-beneficiary-count')?.value, 10) || 50;
+  const items = collectBroadcastItemsFromBuilder();
+
+  if (!title) {
+    showToast('Please specify a title for the broadcast.', true);
+    return;
+  }
+  if (!location || !safeDropPoint) {
+    showToast('Please provide both relief location and nearest safe drop-point for logistics.', true);
+    return;
+  }
+  if (items.length === 0) {
+    showToast('Please include at least one needed supply item.', true);
+    return;
+  }
+
+  const submitBtn = document.getElementById('org-broadcast-submit-btn');
+  const submitBtnText = document.getElementById('org-broadcast-submit-btn-text');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    if (submitBtnText) submitBtnText.textContent = editId ? 'Saving Changes...' : 'Publishing Broadcast...';
+  }
+
+  try {
+    const url = editId ? `/api/org/broadcasts/${editId}` : '/api/org/broadcasts/create';
+    const method = editId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        urgency_mode: selectedBroadcastMode,
+        beneficiary_count: beneficiaryCount,
+        road_condition: roadCondition,
+        location,
+        safe_drop_point: safeDropPoint,
+        description,
+        items
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to save broadcast.');
+    }
+
+    showToast(editId ? 'Relief Needs Broadcast updated successfully!' : 'Relief Needs Broadcast published successfully!');
+    closeOrgBroadcastModal();
+    await loadOrgBroadcasts();
+    broadcastFeedSync();
+  } catch (err) {
+    showToast(err.message, true);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      if (submitBtnText) submitBtnText.textContent = editId ? 'Save Broadcast Changes' : 'Publish Needs Broadcast';
+    }
+  }
+}
+
+let currentOrgBroadcastTab = 'all';
+
+function switchOrgBroadcastTab(tabName) {
+  currentOrgBroadcastTab = tabName;
+  const tabs = ['all', 'my', 'community'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`tab-${t}-broadcasts`);
+    if (btn) btn.classList.toggle('active', t === tabName);
+  });
+
+  const secMy = document.getElementById('section-my-org-broadcasts');
+  const secComm = document.getElementById('section-community-org-broadcasts');
+
+  if (tabName === 'all') {
+    if (secMy) secMy.style.display = 'block';
+    if (secComm) secComm.style.display = 'block';
+  } else if (tabName === 'my') {
+    if (secMy) secMy.style.display = 'block';
+    if (secComm) secComm.style.display = 'none';
+  } else if (tabName === 'community') {
+    if (secMy) secMy.style.display = 'none';
+    if (secComm) secComm.style.display = 'block';
+  }
+}
+
+async function loadOrgBroadcasts(isSilent = false) {
+  const myContainer = document.getElementById('my-org-broadcasts-container');
+  const communityContainer = document.getElementById('community-org-broadcasts-container');
+  const legacyContainer = document.getElementById('org-broadcasts-container');
+
+  if (!myContainer && !legacyContainer && currentView !== 'org-broadcasts') return;
+
+  try {
+    const res = await fetch('/api/org/broadcasts');
+    if (!res.ok) return;
+    const data = await res.json();
+    const broadcasts = data.broadcasts || [];
+    cachedOrgBroadcasts = broadcasts;
+
+    const currentUserId = currentUser ? currentUser.id : null;
+    const isOrg = currentUser && currentUser.role === 'Organization';
+    const isAdmin = currentUser && currentUser.role === 'Admin';
+
+    // Separate broadcasts: My Org vs Community/Partner Orgs
+    const myBroadcasts = data.my_broadcasts || broadcasts.filter(b => b.org_id === currentUserId);
+    const communityBroadcasts = data.community_broadcasts || broadcasts.filter(b => b.org_id !== currentUserId && (isAdmin || b.is_active));
+
+    // Update KPI Metric Cards (for Org role, shows their own drives; for Admin, shows all)
+    const kpiSource = isOrg ? myBroadcasts : broadcasts;
+    let activeDrives = 0;
+    let totalSecured = 0;
+    let totalNeeded = 0;
+
+    kpiSource.forEach(b => {
+      if (b.is_active) {
+        activeDrives += 1;
+        totalSecured += (b.items_secured || 0);
+        totalNeeded += (b.items_needed || 0);
+      }
+    });
+
+    const activeEl = document.getElementById('org-kpi-active-count');
+    const securedEl = document.getElementById('org-kpi-secured-count');
+    const neededEl = document.getElementById('org-kpi-needed-count');
+    const rateEl = document.getElementById('org-kpi-fulfillment-rate');
+
+    if (activeEl) activeEl.textContent = activeDrives;
+    if (securedEl) securedEl.textContent = totalSecured.toLocaleString();
+    if (neededEl) neededEl.textContent = Math.max(0, totalNeeded - totalSecured).toLocaleString();
+    if (rateEl) {
+      const overallRate = totalNeeded > 0 ? Math.min(100, Math.round((totalSecured / totalNeeded) * 100)) : 0;
+      rateEl.textContent = `${overallRate}%`;
+    }
+
+    // Update Tab and Section Badge Counts
+    const bAll = document.getElementById('badge-all-count');
+    const bMy = document.getElementById('badge-my-count');
+    const bComm = document.getElementById('badge-community-count');
+    const myCountTag = document.getElementById('my-broadcasts-count-tag');
+    const commCountTag = document.getElementById('community-broadcasts-count-tag');
+
+    if (bAll) bAll.textContent = broadcasts.length;
+    if (bMy) bMy.textContent = myBroadcasts.length;
+    if (bComm) bComm.textContent = communityBroadcasts.length;
+    if (myCountTag) myCountTag.textContent = `${myBroadcasts.filter(b => b.is_active).length} active`;
+    if (commCountTag) commCountTag.textContent = `${communityBroadcasts.length} partner drives`;
+
+    // Render Section 1: My Organization Broadcasts
+    if (myContainer) {
+      if (myBroadcasts.length === 0) {
+        myContainer.innerHTML = `
+          <div class="empty-state" style="padding: 2rem 1.5rem; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; text-align: center;">
+            <p style="margin: 0; color: #64748B; font-size: 0.9rem;">You haven't created any needs broadcasts yet. Click <strong>"Create Needs Broadcast"</strong> above to launch a relief drive.</p>
+          </div>
+        `;
+      } else {
+        myContainer.innerHTML = myBroadcasts.map(b => renderOrgBroadcastCard(b, true, true)).join('');
+      }
+    }
+
+    // Render Section 2: Community & Partner Broadcasts
+    if (communityContainer) {
+      if (communityBroadcasts.length === 0) {
+        communityContainer.innerHTML = `
+          <div class="empty-state" style="padding: 2rem 1.5rem; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; text-align: center;">
+            <p style="margin: 0; color: #64748B; font-size: 0.9rem;">No active broadcasts from partner campus organizations at this time.</p>
+          </div>
+        `;
+      } else {
+        communityContainer.innerHTML = communityBroadcasts.map(b => renderOrgBroadcastCard(b, true, false)).join('');
+      }
+    }
+
+    // Fallback for legacy single container
+    if (legacyContainer && !myContainer) {
+      if (broadcasts.length === 0) {
+        legacyContainer.innerHTML = `
+          <div class="empty-state">
+            <h3>No Needs Broadcasts Yet</h3>
+            <p>Click "Create Needs Broadcast" above to mobilize campus students for disaster relief, school recovery, or community projects.</p>
+          </div>
+        `;
+      } else {
+        legacyContainer.innerHTML = broadcasts.map(b => renderOrgBroadcastCard(b, true, b.org_id === currentUserId)).join('');
+      }
+    }
+  } catch (err) {
+    if (!isSilent) console.error('Error loading org broadcasts:', err);
+  }
+}
+
+function getUrgencyBadgeHtml(mode) {
+  switch (mode) {
+    case 'crisis_shelter':
+      return `<span class="badge badge-red badge-status"><span class="status-dot dot-red"></span>Crisis – Immediate Shelter / CFS</span>`;
+    case 'crisis_school':
+      return `<span class="badge badge-amber badge-status"><span class="status-dot dot-amber"></span>Crisis – School Recovery</span>`;
+    case 'seasonal_drive':
+      return `<span class="badge badge-yellow badge-status"><span class="status-dot dot-yellow"></span>Seasonal Drive</span>`;
+    case 'ongoing':
+    default:
+      return `<span class="badge badge-green badge-status"><span class="status-dot dot-green"></span>Ongoing Project</span>`;
+  }
+}
+
+function renderOrgBroadcastCard(b, isOrgPortalView = true, isMineOverride = null) {
+  const urgencyClass = `urgency-${b.urgency_mode || 'crisis_shelter'}`;
+  const isMine = isMineOverride !== null ? isMineOverride : (currentUser && b.org_id === currentUser.id);
+  const isAdmin = currentUser && currentUser.role === 'Admin';
+  const pct = Math.min(100, Math.round(b.fulfillment_percentage || 0));
+
+
+  const itemsHtml = (b.items || []).map(item => {
+    const isFulfilled = item.quantity_secured >= item.quantity_needed;
+    const remaining = Math.max(0, item.quantity_needed - item.quantity_secured);
+    return `
+      <div class="broadcast-item-card ${isFulfilled ? 'is-fulfilled' : ''}">
+        <div class="item-card-top">
+          <span class="item-bracket-tag" title="${escapeAttr(item.age_bracket || 'General')}">${escapeHtml(item.age_bracket || 'General')}</span>
+          <span class="item-progress-ratio ${isFulfilled ? 'fulfilled' : ''}">
+            ${item.quantity_secured} / ${item.quantity_needed}
+          </span>
+        </div>
+        <div class="item-card-name" title="${escapeAttr(item.item_name)}">
+          ${escapeHtml(item.item_name)}
+        </div>
+        <div class="item-card-bottom">
+          <span class="item-remaining-pill ${isFulfilled ? 'fulfilled' : ''}">
+            ${isFulfilled ? 'Completed' : `(${remaining} left)`}
+          </span>
+          ${!isFulfilled && item.quantity_pending ? `<span style="font-size: 0.72rem; font-weight: 700; color: #92400E; background: #FEF3C7; padding: 2px 6px; border-radius: 4px;" title="${item.quantity_pending} currently pledged and pending physical drop-off">${item.quantity_pending} pending</span>` : ''}
+          <span class="item-unit-tag">${escapeHtml(item.unit || 'units')}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <article class="org-broadcast-card ${urgencyClass}" id="org-broadcast-card-${b.id}">
+      <!-- Header Row: Status badge left, timestamp right on same line -->
+      <div class="org-broadcast-header-row">
+        <div class="org-header-badges">
+          ${!isOrgPortalView ? '<span class="badge badge-important">IMPORTANT • Organization Broadcast</span>' : ''}
+          ${getUrgencyBadgeHtml(b.urgency_mode)}
+          ${!b.is_active ? '<span class="badge badge-neutral">Closed / Completed</span>' : ''}
+        </div>
+        <span class="broadcast-timestamp">${escapeHtml(b.created_at)}</span>
+      </div>
+
+      <!-- Main Title -->
+      <h3 class="org-broadcast-title">${escapeHtml(b.title)}</h3>
+
+      <!-- Organization Meta Row -->
+      <div class="org-broadcast-meta-row">
+        <span class="meta-org-name">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>
+          ${escapeHtml(b.org_name)}
+        </span>
+        <span class="badge badge-blue badge-verified">Verified Org</span>
+        ${b.beneficiary_count ? `<span class="meta-beneficiary-count">&bull; <strong>${b.beneficiary_count}</strong> Beneficiaries</span>` : ''}
+      </div>
+
+      <!-- Concise Description -->
+      ${b.description ? `<p class="org-broadcast-desc">${escapeHtml(b.description)}</p>` : ''}
+
+      <!-- Structured 3-Column Logistics Metadata Row -->
+      <div class="org-logistics-grid">
+        <div class="logistics-col">
+          <span class="logistics-col-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            Access
+          </span>
+          <span class="logistics-col-value font-medium">${escapeHtml(b.road_condition || 'Motorable')}</span>
+        </div>
+        <div class="logistics-col">
+          <span class="logistics-col-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            Relief Site
+          </span>
+          <span class="logistics-col-value" title="${escapeAttr(b.location)}">${escapeHtml(b.location)}</span>
+        </div>
+        <div class="logistics-col">
+          <span class="logistics-col-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"></path><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
+            Drop-Point
+          </span>
+          <span class="logistics-col-value font-medium" title="${escapeAttr(b.safe_drop_point)}">${escapeHtml(b.safe_drop_point)}</span>
+        </div>
+      </div>
+
+      <!-- Live Fulfillment Progress: Label and percentage neatly grouped -->
+      <div class="fulfillment-progress-wrapper">
+        <div class="fulfillment-progress-header">
+          <div class="fulfillment-label-group">
+            <span class="progress-title">Relief Fulfillment Progress:</span>
+            <span class="progress-counts">
+              <strong>${b.items_secured || 0}</strong> of <strong>${b.items_needed || 0}</strong> items secured
+              ${b.items_pending ? ` <span style="font-weight: 600; color: #D97706;">(${b.items_pending} pending drop-off)</span>` : ''}
+            </span>
+          </div>
+          <span class="progress-percentage ${pct >= 100 ? 'text-success' : 'text-primary'}">${pct}%</span>
+        </div>
+        <div class="fulfillment-progress-track">
+          <div class="fulfillment-progress-fill" style="width: ${pct}%;"></div>
+        </div>
+      </div>
+
+      <!-- Needed Supplies Breakdown in Equal-Width 3-Column Grid -->
+      <div class="broadcast-supplies-section">
+        <div class="supplies-section-header">
+          <span>Needed Supplies &amp; Age-Bracket Breakdown</span>
+          <span class="supplies-stats">${(b.items || []).filter(i => i.quantity_secured >= i.quantity_needed).length} of ${(b.items || []).length} categories fulfilled</span>
+        </div>
+        <div class="broadcast-items-grid">
+          ${itemsHtml}
+        </div>
+      </div>
+
+      <!-- Card Action Footer -->
+      <div class="org-broadcast-card-footer">
+        <div class="footer-meta-text">
+          ${b.is_active ? 'Active relief drive accepting community contributions' : 'Relief drive marked as closed'}
+        </div>
+        <div class="footer-actions">
+          ${isOrgPortalView && (isMine || (currentUser && currentUser.role === 'Admin'))
+            ? `
+              <button type="button" class="btn-primary btn-sm" onclick="openOrgRecordPage(${b.id})" style="background: #059669; border-color: #059669;">
+                + Record Supplies
+              </button>
+              <button type="button" class="btn-outline btn-sm" onclick="openOrgBroadcastRecordsPage(${b.id})" style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                <span>Records &amp; Pledges</span>
+                ${b.pending_pledges_count ? `<span style="background: #FEF3C7; color: #92400E; font-size: 0.72rem; font-weight: 800; padding: 1px 6px; border-radius: 9999px;">${b.pending_pledges_count}</span>` : ''}
+              </button>
+              <button type="button" class="btn-outline btn-sm" onclick="openOrgEditBroadcast(${b.id})">
+                Edit
+              </button>
+              <button type="button" class="btn-outline btn-sm" onclick="toggleCloseOrgBroadcast(${b.id})">
+                ${b.is_active ? 'Close Drive' : 'Reopen Drive'}
+              </button>
+              <button type="button" class="btn-danger btn-sm" onclick="confirmDeleteOrgBroadcast(${b.id}, '${escapeAttr(b.title)}')">
+                Delete
+              </button>
+            `
+            : isOrgPortalView && !isMine
+              ? b.is_active
+                ? `
+                  <button type="button" class="btn-primary btn-sm" onclick="openOrgRecordPage(${b.id})" style="display: flex; align-items: center; gap: 0.45rem; font-weight: 600; background: #2563EB; border-color: #2563EB;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span>Contribute / Pledge Supplies</span>
+                  </button>
+                `
+                : `<span class="badge badge-neutral">Drive Completed</span>`
+              : b.is_active
+                ? `
+                  <button type="button" class="btn-primary btn-sm" onclick="openOrgRecordPage(${b.id}, 'feed')" style="display: flex; align-items: center; gap: 0.45rem; font-weight: 600;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>
+                    <span>Help Fulfill / Donate Item</span>
+                  </button>
+                `
+                : `<span class="badge badge-neutral">Drive Completed</span>`
+          }
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+async function toggleCloseOrgBroadcast(broadcastId) {
+  try {
+    const res = await fetch(`/api/org/broadcasts/${broadcastId}/close`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update broadcast status.');
+    showToast(data.message || 'Status updated.');
+    await loadOrgBroadcasts();
+    broadcastFeedSync();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+function confirmDeleteOrgBroadcast(broadcastId, title) {
+  openConfirmModal(
+    `Are you sure you want to delete this needs broadcast: "${title}"? All pledged data will be permanently removed.`,
+    'Delete Broadcast',
+    () => performDeleteOrgBroadcast(broadcastId)
+  );
+}
+
+async function performDeleteOrgBroadcast(broadcastId) {
+  try {
+    const res = await fetch(`/api/org/broadcasts/${broadcastId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete broadcast.');
+    showToast(data.message || 'Broadcast deleted.');
+    await loadOrgBroadcasts();
+    broadcastFeedSync();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+// --------------------------------------------------------------------------
+// 14. DEDICATED FULL-PAGE MULTI-ITEM BATCH RECORD & CONTRIBUTE ENGINE
+// --------------------------------------------------------------------------
+async function openOrgRecordPage(broadcastId, returnView = null) {
+  const allBroadcasts = [...cachedOrgBroadcasts, ...cachedFeedOrgBroadcasts];
+  let b = allBroadcasts.find(x => x.id === broadcastId);
+  if (!b) {
+    try {
+      const res = await fetch(`/api/org/broadcasts/${broadcastId}`);
+      if (res.ok) {
+        const data = await res.json();
+        b = data.broadcast;
+      }
+    } catch (err) {
+      console.error('Error fetching broadcast for recording:', err);
+    }
+  }
+  if (!b) {
+    showToast('Broadcast not found.', true);
+    return;
+  }
+
+  activeRecordBroadcast = b;
+  recordPageReturnView = returnView || (currentView === 'feed' || currentView === 'admin-feed' ? 'feed' : 'org-broadcasts');
+
+  const isOwner = currentUser && b.org_id === currentUser.id;
+
+  const backLabel = document.getElementById('record-page-back-label');
+  if (backLabel) {
+    backLabel.textContent = recordPageReturnView === 'feed' ? 'Back to Campus Feed' : 'Back to Needs Broadcasts';
+  }
+
+  const titleEl = document.getElementById('record-page-title');
+  const subtitleEl = document.getElementById('record-page-subtitle');
+  const btnText = document.getElementById('batch-record-submit-btn-text');
+
+  if (titleEl) titleEl.textContent = isOwner ? 'Record Received Supplies' : 'Contribute / Pledge Supplies';
+  if (subtitleEl) subtitleEl.textContent = isOwner
+    ? 'Enter quantities for any supplies physically received for this drive and save once.'
+    : 'Enter quantities for the items you are providing and confirm once.';
+  if (btnText) btnText.textContent = isOwner ? 'Save Recorded Supplies' : 'Confirm Contribution';
+
+  // Configure donor details / memo fields
+  const donorNameContainer = document.getElementById('record-donor-name-container');
+  const metaHeading = document.getElementById('record-meta-heading');
+  const metaSub = document.getElementById('record-meta-sub');
+  const donorNameInp = document.getElementById('record-donor-name');
+  const donorNotesInp = document.getElementById('record-donor-notes');
+
+  if (donorNameInp) donorNameInp.value = '';
+  if (donorNotesInp) donorNotesInp.value = '';
+
+  if (isOwner) {
+    if (donorNameContainer) donorNameContainer.style.display = 'block';
+    if (metaHeading) metaHeading.textContent = 'Donor & Delivery Details';
+    if (metaSub) metaSub.textContent = 'Specify who provided these physical offline supplies for permanent recording.';
+  } else {
+    if (donorNameContainer) donorNameContainer.style.display = 'none';
+    if (metaHeading) metaHeading.textContent = 'Pledge Delivery Notes (Optional)';
+    if (metaSub) metaSub.textContent = 'Add any message or estimated drop-off time for the organization.';
+  }
+
+  // Summary box (clean left alignment, no stray bullet)
+  const summaryBox = document.getElementById('record-page-summary-box');
+  if (summaryBox) {
+    summaryBox.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.65rem; flex-wrap: wrap;">
+        ${getUrgencyBadgeHtml(b.urgency_mode)}
+        <span class="badge badge-blue">Verified Org</span>
+      </div>
+      <h2 style="font-size: 1.25rem; font-weight: 800; color: #0F172A; margin: 0 0 0.45rem 0; line-height: 1.35;">
+        ${escapeHtml(b.title)}
+      </h2>
+      <div style="font-size: 0.86rem; color: #475569; margin-bottom: 0.85rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+        <span><strong>${escapeHtml(b.org_name)}</strong></span>
+        ${b.beneficiary_count ? `<span>&bull;</span> <span><strong>${b.beneficiary_count}</strong> Beneficiaries</span>` : ''}
+      </div>
+      <div class="org-logistics-grid" style="margin-top: 0.5rem;">
+        <div class="logistics-col">
+          <span class="logistics-col-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            Access
+          </span>
+          <span class="logistics-col-value font-medium">${escapeHtml(b.road_condition || 'Motorable')}</span>
+        </div>
+        <div class="logistics-col">
+          <span class="logistics-col-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            Relief Site
+          </span>
+          <span class="logistics-col-value" title="${escapeAttr(b.location)}">${escapeHtml(b.location)}</span>
+        </div>
+        <div class="logistics-col">
+          <span class="logistics-col-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"></path><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
+            Drop-Point
+          </span>
+          <span class="logistics-col-value font-medium" title="${escapeAttr(b.safe_drop_point)}">${escapeHtml(b.safe_drop_point)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Multi-item side-by-side list
+  const itemsContainer = document.getElementById('record-page-items-list');
+  if (itemsContainer) {
+    const items = b.items || [];
+    if (items.length === 0) {
+      itemsContainer.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: #64748B;">No supply items found for this drive.</div>';
+    } else {
+      itemsContainer.innerHTML = items.map(it => {
+        const remaining = Math.max(0, it.quantity_needed - it.quantity_secured);
+        const isFulfilled = remaining === 0;
+        return `
+          <div class="record-item-row ${isFulfilled ? 'is-fulfilled' : ''}" data-item-id="${it.id}" data-remaining="${remaining}">
+            <div class="record-item-left">
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px; flex-wrap: wrap;">
+                <span class="badge badge-neutral" style="font-size: 0.74rem; font-weight: 600;">${escapeHtml(it.age_bracket || 'General')}</span>
+                ${isFulfilled ? '<span class="badge badge-green" style="font-size: 0.72rem;">Fulfilled</span>' : ''}
+              </div>
+              <div style="font-weight: 700; font-size: 0.95rem; color: #0F172A; margin-bottom: 3px;">
+                ${escapeHtml(it.item_name)}
+              </div>
+              <div style="font-size: 0.8rem; color: #64748B;">
+                <span><strong>${it.quantity_secured}</strong> / ${it.quantity_needed} secured</span>
+                <span style="margin: 0 5px; opacity: 0.5;">&bull;</span>
+                <span class="${isFulfilled ? 'text-success font-medium' : 'text-primary font-medium'}">
+                  ${isFulfilled ? 'Fully secured' : `${remaining} left`}
+                </span>
+              </div>
+            </div>
+
+            <div class="record-item-right">
+              ${!isFulfilled ? `
+                <button
+                  type="button"
+                  class="fill-remaining-btn"
+                  onclick="fillItemRemaining(${it.id}, ${remaining})"
+                  title="Quick-set to remaining ${remaining} needed"
+                >
+                  Fill Remaining (${remaining})
+                </button>
+              ` : ''}
+              <div class="record-qty-stepper-box">
+                <button
+                  type="button"
+                  class="stepper-btn"
+                  onclick="stepItemQty(${it.id}, -1)"
+                  ${isFulfilled ? 'disabled' : ''}
+                  aria-label="Decrease quantity"
+                >&minus;</button>
+                <input
+                  type="number"
+                  class="form-control batch-item-qty-input"
+                  id="batch-qty-input-${it.id}"
+                  data-item-id="${it.id}"
+                  data-remaining="${remaining}"
+                  value="0"
+                  min="0"
+                  max="${remaining}"
+                  ${isFulfilled ? 'disabled style="background: #F1F5F9; color: #94A3B8;"' : ''}
+                  oninput="handleBatchItemQtyChange(${it.id})"
+                  style="width: 72px; text-align: center; font-weight: 800; font-size: 0.95rem; padding: 0.35rem 0.3rem;"
+                />
+                <button
+                  type="button"
+                  class="stepper-btn"
+                  onclick="stepItemQty(${it.id}, 1)"
+                  ${isFulfilled ? 'disabled' : ''}
+                  aria-label="Increase quantity"
+                >&plus;</button>
+              </div>
+              <span style="font-size: 0.82rem; color: #64748B; min-width: 45px;">${escapeHtml(it.unit || 'units')}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  updateBatchRecordSummary();
+  navigateTo('org-record-broadcast');
+}
+
+function handleBackFromRecordPage() {
+  const returnView = recordPageReturnView || 'org-broadcasts';
+  activeRecordBroadcast = null;
+  navigateTo(returnView);
+}
+
+function stepItemQty(itemId, delta) {
+  const input = document.getElementById(`batch-qty-input-${itemId}`);
+  if (!input || input.disabled) return;
+  const max = parseInt(input.dataset.remaining, 10) || 999999;
+  let currentVal = parseInt(input.value, 10) || 0;
+  let nextVal = currentVal + delta;
+  if (nextVal < 0) nextVal = 0;
+  if (nextVal > max) nextVal = max;
+  input.value = nextVal;
+  updateBatchRecordSummary();
+}
+
+function fillItemRemaining(itemId, remaining) {
+  const input = document.getElementById(`batch-qty-input-${itemId}`);
+  if (!input || input.disabled) return;
+  input.value = remaining;
+  updateBatchRecordSummary();
+}
+
+function handleBatchItemQtyChange(itemId) {
+  const input = document.getElementById(`batch-qty-input-${itemId}`);
+  if (!input || input.disabled) return;
+  const max = parseInt(input.dataset.remaining, 10) || 999999;
+  let val = parseInt(input.value, 10);
+  if (isNaN(val) || val < 0) val = 0;
+  if (val > max) val = max;
+  input.value = val;
+  updateBatchRecordSummary();
+}
+
+function updateBatchRecordSummary() {
+  const inputs = document.querySelectorAll('.batch-item-qty-input');
+  let totalQty = 0;
+  let categoriesCount = 0;
+
+  inputs.forEach(inp => {
+    const val = parseInt(inp.value, 10) || 0;
+    if (val > 0) {
+      totalQty += val;
+      categoriesCount += 1;
+    }
+  });
+
+  const totalEl = document.getElementById('batch-record-total-qty');
+  const catEl = document.getElementById('batch-record-categories-count');
+  const submitBtn = document.getElementById('batch-record-submit-btn');
+
+  if (totalEl) totalEl.textContent = totalQty;
+  if (catEl) catEl.textContent = categoriesCount;
+  if (submitBtn) {
+    submitBtn.disabled = totalQty === 0;
+  }
+}
+
+async function handleSubmitBatchRecord() {
+  if (!activeRecordBroadcast) return;
+  const itemsToUpdate = [];
+  document.querySelectorAll('.batch-item-qty-input').forEach(input => {
+    const qty = parseInt(input.value, 10) || 0;
+    const itemId = parseInt(input.dataset.itemId, 10);
+    if (qty > 0 && itemId) {
+      itemsToUpdate.push({ item_id: itemId, quantity: qty });
+    }
+  });
+
+  if (itemsToUpdate.length === 0) {
+    showToast('Please enter a quantity greater than 0 for at least one item.', true);
+    return;
+  }
+
+  const isOwner = currentUser && activeRecordBroadcast.org_id === currentUser.id;
+  const donorName = (document.getElementById('record-donor-name')?.value || '').trim();
+  const notes = (document.getElementById('record-donor-notes')?.value || '').trim();
+  const submitBtn = document.getElementById('batch-record-submit-btn');
+  const btnText = document.getElementById('batch-record-submit-btn-text');
+
+  if (submitBtn) submitBtn.disabled = true;
+  if (btnText) btnText.textContent = isOwner ? 'Saving Recorded Supplies...' : 'Confirming Contribution...';
+
+  try {
+    const res = await fetch(`/api/org/broadcasts/${activeRecordBroadcast.id}/batch-fulfill`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: itemsToUpdate,
+        donor_name: donorName,
+        notes: notes
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to update supplies.');
+    }
+
+    const returnView = recordPageReturnView || 'org-broadcasts';
+
+    if (!isOwner) {
+      // Contributor pledge registered -> Show Pledge Confirmation Pass with Ref Code
+      showToast('Pledge recorded! Reference Code: ' + (data.reference_code || ''));
+      openPledgePassModal(data.reference_code, activeRecordBroadcast, data.contribution || { items: itemsToUpdate });
+      activeRecordBroadcast = null;
+      if (returnView === 'org-broadcasts') {
+        loadOrgBroadcasts();
+      } else if (returnView === 'feed' || returnView === 'admin-feed') {
+        loadFeedWorkspace(true);
+      }
+      broadcastFeedSync();
+      return;
+    }
+
+    // Owner recording offline walk-in supplies directly verified
+    showToast('Offline supplies logged & verified into permanent ledger.');
+    activeRecordBroadcast = null;
+
+    if (returnView === 'org-broadcasts') {
+      await loadOrgBroadcasts();
+    } else if (returnView === 'feed' || returnView === 'admin-feed') {
+      await loadFeedWorkspace(true);
+    }
+    broadcastFeedSync();
+    navigateTo(returnView);
+  } catch (err) {
+    console.error('Error submitting batch record:', err);
+    showToast(err.message, true);
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+    if (btnText) btnText.textContent = isOwner ? 'Save Recorded Supplies' : 'Confirm Contribution';
+  }
+}
+
+const openOrgFulfillModal = openOrgRecordPage;
+
+// --------------------------------------------------------------------------
+// 15. PLEDGE PASS VOUCHER MODAL (Reference Code for Drop-off)
+// --------------------------------------------------------------------------
+function openPledgePassModal(refCode, broadcast, contrib) {
+  const modal = document.getElementById('pledge-pass-modal-backdrop');
+  if (!modal) return;
+
+  const codeEl = document.getElementById('pledge-pass-code');
+  const dropEl = document.getElementById('pledge-pass-droppoint');
+  const itemsContainer = document.getElementById('pledge-pass-items-list');
+
+  if (codeEl) codeEl.textContent = refCode || 'SL-0000';
+  if (dropEl) dropEl.textContent = broadcast?.safe_drop_point || 'Main Campus Gate / Relief Hub';
+
+  if (itemsContainer) {
+    const items = (contrib && contrib.items) || [];
+    itemsContainer.innerHTML = items.map(it => `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; border-bottom: 1px solid #F1F5F9; font-size: 0.84rem;">
+        <div>
+          <span style="font-weight: 600; color: #0F172A;">${escapeHtml(it.item_name || 'Supply Item')}</span>
+          ${it.age_bracket ? `<span style="font-size: 0.75rem; color: #64748B; margin-left: 6px;">(${escapeHtml(it.age_bracket)})</span>` : ''}
+        </div>
+        <div style="font-weight: 700; color: #166534;">
+          ${it.pledged_qty || it.quantity || 0} ${escapeHtml(it.unit || 'units')}
+        </div>
+      </div>
+    `).join('') || '<div style="padding: 0.5rem; text-align: center; color: #64748B;">No items specified.</div>';
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closePledgePassModal() {
+  const modal = document.getElementById('pledge-pass-modal-backdrop');
+  if (modal) modal.classList.add('hidden');
+}
+
+function copyPledgePassCode() {
+  const codeEl = document.getElementById('pledge-pass-code');
+  const copyText = document.getElementById('pledge-pass-copy-text');
+  if (!codeEl) return;
+  const text = codeEl.textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    if (copyText) copyText.textContent = 'Copied!';
+    setTimeout(() => {
+      if (copyText) copyText.textContent = 'Copy';
+    }, 2000);
+    showToast(`Reference code ${text} copied to clipboard!`);
+  }).catch(() => {
+    showToast(`Code: ${text}`);
+  });
+}
+
+// --------------------------------------------------------------------------
+// 16. OWNER CONTRIBUTIONS & VERIFICATION LEDGER ENGINE
+// --------------------------------------------------------------------------
+let currentRecordsBroadcast = null;
+let currentRecordsList = [];
+
+async function openOrgBroadcastRecordsPage(broadcastId) {
+  try {
+    const res = await fetch(`/api/org/broadcasts/${broadcastId}/contributions`);
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to fetch contribution records.');
+    }
+    const data = await res.json();
+    currentRecordsBroadcast = data.broadcast;
+    currentRecordsList = data.contributions || [];
+
+    renderRecordsSummary(currentRecordsBroadcast);
+    renderRecordsTabsData();
+
+    navigateTo('org-broadcast-records');
+  } catch (err) {
+    console.error('Error opening broadcast records page:', err);
+    showToast(err.message, true);
+  }
+}
+
+function handleBackFromRecordsLedger() {
+  currentRecordsBroadcast = null;
+  currentRecordsList = [];
+  navigateTo('org-broadcasts');
+}
+
+function switchRecordsTab(tab) {
+  const tabBtnPending = document.getElementById('tab-btn-pending-pledges');
+  const tabBtnVerified = document.getElementById('tab-btn-verified-ledger');
+  const panePending = document.getElementById('pane-pending-pledges');
+  const paneVerified = document.getElementById('pane-verified-ledger');
+
+  if (tab === 'pending') {
+    if (tabBtnPending) {
+      tabBtnPending.classList.add('active');
+      tabBtnPending.style.borderBottomColor = '#2563EB';
+      tabBtnPending.style.color = '#2563EB';
+    }
+    if (tabBtnVerified) {
+      tabBtnVerified.classList.remove('active');
+      tabBtnVerified.style.borderBottomColor = 'transparent';
+      tabBtnVerified.style.color = '#64748B';
+    }
+    if (panePending) panePending.classList.remove('hidden');
+    if (paneVerified) paneVerified.classList.add('hidden');
+  } else {
+    if (tabBtnVerified) {
+      tabBtnVerified.classList.add('active');
+      tabBtnVerified.style.borderBottomColor = '#059669';
+      tabBtnVerified.style.color = '#059669';
+    }
+    if (tabBtnPending) {
+      tabBtnPending.classList.remove('active');
+      tabBtnPending.style.borderBottomColor = 'transparent';
+      tabBtnPending.style.color = '#64748B';
+    }
+    if (paneVerified) paneVerified.classList.remove('hidden');
+    if (panePending) panePending.classList.add('hidden');
+  }
+}
+
+function renderRecordsSummary(b) {
+  const card = document.getElementById('records-broadcast-summary-card');
+  if (!card || !b) return;
+
+  const pct = Math.min(100, Math.round(b.fulfillment_percentage || 0));
+  card.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px;">
+          ${getUrgencyBadgeHtml(b.urgency_mode)}
+          <span class="badge ${b.is_active ? 'badge-green' : 'badge-neutral'}">${b.is_active ? 'Active Drive' : 'Closed'}</span>
+        </div>
+        <h2 style="font-size: 1.25rem; font-weight: 800; color: #0F172A; margin: 0 0 2px 0;">${escapeHtml(b.title)}</h2>
+        <div style="font-size: 0.84rem; color: #64748B;">Drop-off Location: <strong style="color: #1E293B;">${escapeHtml(b.safe_drop_point || b.location)}</strong></div>
+      </div>
+      <div style="text-align: right;">
+        <span style="font-size: 1.15rem; font-weight: 800; color: #059669;">${pct}% Fulfilled</span>
+        <div style="font-size: 0.8rem; color: #64748B;">${b.items_secured || 0} / ${b.items_needed || 0} secured</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRecordsTabsData() {
+  const pending = currentRecordsList.filter(c => c.status === 'pending_dropoff');
+  const verified = currentRecordsList.filter(c => c.status === 'verified_received');
+
+  const pendingBadge = document.getElementById('badge-pending-count');
+  const verifiedBadge = document.getElementById('badge-verified-count');
+  if (pendingBadge) pendingBadge.textContent = pending.length;
+  if (verifiedBadge) verifiedBadge.textContent = verified.length;
+
+  // Render Pending Drop-Offs
+  const pendingContainer = document.getElementById('pending-pledges-container');
+  if (pendingContainer) {
+    if (pending.length === 0) {
+      pendingContainer.innerHTML = `
+        <div style="background: #FFFFFF; border: 1px dashed #CBD5E1; border-radius: 10px; padding: 2.5rem 1.5rem; text-align: center; color: #64748B;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8" style="margin-bottom: 0.5rem;"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <div style="font-weight: 700; color: #334155; font-size: 0.95rem; margin-bottom: 3px;">No Pending Drop-Offs</div>
+          <p style="font-size: 0.84rem; margin: 0;">All community pledges have been verified or there are no open drop-offs at this time.</p>
+        </div>
+      `;
+    } else {
+      pendingContainer.innerHTML = pending.map(c => `
+        <div class="create-broadcast-card" style="margin-bottom: 1rem; border-left: 4px solid #F59E0B; text-align: left;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px;">
+                <span style="font-family: monospace; font-weight: 800; font-size: 1rem; color: #92400E; background: #FEF3C7; padding: 2px 8px; border-radius: 6px;">${escapeHtml(c.reference_code)}</span>
+                <span class="badge ${c.contributor_type === 'organization' ? 'badge-amber' : 'badge-blue'}">${c.contributor_type === 'organization' ? 'Organization' : 'Student'}</span>
+                <span class="badge badge-amber">Pending Drop-off</span>
+              </div>
+              <div style="font-weight: 700; font-size: 1rem; color: #0F172A;">${escapeHtml(c.contributor_name)}</div>
+              <div style="font-size: 0.78rem; color: #64748B;">Pledged on ${escapeHtml(c.created_at)}</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <button type="button" class="btn-primary btn-sm" onclick="openVerifyModalForContribution(${c.id})" style="background: #059669; border-color: #059669; display: inline-flex; align-items: center; gap: 4px; font-weight: 700;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Verify &amp; Mark Received
+              </button>
+              <button type="button" class="btn-outline btn-sm" onclick="confirmCancelContribution(${c.id}, '${escapeAttr(c.reference_code)}')" style="color: #DC2626; border-color: #FECACA;">
+                Cancel / No-Show
+              </button>
+            </div>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 0.5rem;">
+            <div style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Pledged Supplies (${c.total_items_pledged} items total):</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+              ${(c.items || []).map(it => `
+                <div style="background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 3px 8px; font-size: 0.82rem;">
+                  <strong>${it.pledged_qty || it.quantity || 0} ${escapeHtml(it.unit || 'units')}</strong> &bull; ${escapeHtml(it.item_name)}
+                  ${it.age_bracket ? `<span style="color: #64748B; font-size: 0.75rem;">(${escapeHtml(it.age_bracket)})</span>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          ${c.notes ? `<div style="font-size: 0.8rem; color: #64748B;"><strong>Note:</strong> ${escapeHtml(c.notes)}</div>` : ''}
+        </div>
+      `).join('');
+    }
+  }
+
+  // Render Verified History Ledger
+  const verifiedTbody = document.getElementById('verified-ledger-tbody');
+  if (verifiedTbody) {
+    if (verified.length === 0) {
+      verifiedTbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="padding: 2rem; text-align: center; color: #64748B;">
+            No verified transactions logged yet. Verified pledges and physical offline receipts will appear in this audit ledger.
+          </td>
+        </tr>
+      `;
+    } else {
+      verifiedTbody.innerHTML = verified.map(c => `
+        <tr style="border-bottom: 1px solid #F1F5F9;">
+          <td style="padding: 0.75rem 0.85rem; font-family: monospace; font-weight: 700; color: #0F172A;">
+            ${escapeHtml(c.reference_code)}
+          </td>
+          <td style="padding: 0.75rem 0.85rem; color: #475569; white-space: nowrap;">
+            ${escapeHtml(c.verified_at || c.created_at)}
+          </td>
+          <td style="padding: 0.75rem 0.85rem;">
+            <div style="font-weight: 600; color: #0F172A;">${escapeHtml(c.contributor_name)}</div>
+            <span class="badge ${c.contributor_type === 'offline_walkin' ? 'badge-neutral' : (c.contributor_type === 'organization' ? 'badge-amber' : 'badge-blue')}" style="font-size: 0.68rem; margin-top: 2px;">
+              ${c.contributor_type === 'offline_walkin' ? 'Offline Walk-in' : (c.contributor_type === 'organization' ? 'Organization' : 'Student')}
+            </span>
+          </td>
+          <td style="padding: 0.75rem 0.85rem;">
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              ${(c.items || []).map(it => `
+                <span style="color: #1E293B; font-size: 0.82rem;">
+                  <strong>${it.received_qty != null ? it.received_qty : (it.pledged_qty || 0)} ${escapeHtml(it.unit || 'units')}</strong> &bull; ${escapeHtml(it.item_name)}
+                </span>
+              `).join('')}
+            </div>
+          </td>
+          <td style="padding: 0.75rem 0.85rem; color: #64748B; font-size: 0.8rem;">
+            <div>Verified by: <strong>${escapeHtml(c.verified_by || 'Organization')}</strong></div>
+            ${c.notes ? `<div style="margin-top: 2px; color: #475569; font-style: italic;">${escapeHtml(c.notes)}</div>` : ''}
+          </td>
+        </tr>
+      `).join('');
+    }
+  }
+}
+
+function exportCurrentBroadcastLedgerCsv() {
+  if (!currentRecordsBroadcast) return;
+  window.location.href = `/api/org/broadcasts/${currentRecordsBroadcast.id}/contributions/export.csv`;
+}
+
+// --------------------------------------------------------------------------
+// 17. OWNER PHYSICAL VERIFICATION PROMPT ENGINE
+// --------------------------------------------------------------------------
+let activeVerifyContribution = null;
+
+function openVerifyModalForContribution(contribId) {
+  const contrib = currentRecordsList.find(c => c.id === contribId);
+  if (!contrib) return;
+  activeVerifyContribution = contrib;
+
+  const modal = document.getElementById('verify-contribution-modal-backdrop');
+  if (!modal) return;
+
+  const metaEl = document.getElementById('verify-modal-meta');
+  if (metaEl) {
+    metaEl.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <span style="font-family: monospace; font-weight: 800; color: #166534; font-size: 0.95rem;">${escapeHtml(contrib.reference_code)}</span>
+          <span style="margin: 0 6px; opacity: 0.4;">&bull;</span>
+          <strong>${escapeHtml(contrib.contributor_name)}</strong>
+          <span class="badge ${contrib.contributor_type === 'organization' ? 'badge-amber' : 'badge-blue'}" style="font-size: 0.7rem; margin-left: 6px;">
+            ${contrib.contributor_type === 'organization' ? 'Organization' : 'Student'}
+          </span>
+        </div>
+        <div style="font-size: 0.78rem; color: #64748B;">Pledged: ${escapeHtml(contrib.created_at)}</div>
+      </div>
+      ${contrib.notes ? `<div style="margin-top: 6px; font-size: 0.8rem; color: #475569;"><em>Note: ${escapeHtml(contrib.notes)}</em></div>` : ''}
+    `;
+  }
+
+  const tbody = document.getElementById('verify-modal-items-tbody');
+  if (tbody) {
+    tbody.innerHTML = (contrib.items || []).map(it => {
+      const pledged = it.pledged_qty || it.quantity || 0;
+      return `
+        <tr style="border-bottom: 1px solid #F1F5F9;">
+          <td style="padding: 0.55rem 0.65rem;">
+            <div style="font-weight: 600; color: #0F172A;">${escapeHtml(it.item_name)}</div>
+            ${it.age_bracket ? `<span style="font-size: 0.74rem; color: #64748B;">${escapeHtml(it.age_bracket)}</span>` : ''}
+          </td>
+          <td style="padding: 0.55rem 0.65rem; text-align: right; font-weight: 700; color: #64748B;">
+            ${pledged} ${escapeHtml(it.unit || 'units')}
+          </td>
+          <td style="padding: 0.55rem 0.65rem; text-align: right;">
+            <input
+              type="number"
+              class="form-control verify-item-actual-qty"
+              data-item-id="${it.item_id}"
+              value="${pledged}"
+              min="0"
+              max="100000"
+              style="width: 80px; text-align: right; font-weight: 800; font-size: 0.88rem; display: inline-block; padding: 0.25rem 0.45rem;"
+            />
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  const notesInput = document.getElementById('verify-modal-notes');
+  if (notesInput) notesInput.value = '';
+
+  modal.classList.remove('hidden');
+}
+
+function closeVerifyContributionModal() {
+  activeVerifyContribution = null;
+  const modal = document.getElementById('verify-contribution-modal-backdrop');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function submitVerifyContribution() {
+  if (!activeVerifyContribution) return;
+
+  const actualInputs = document.querySelectorAll('.verify-item-actual-qty');
+  const receivedItems = [];
+  actualInputs.forEach(inp => {
+    const itId = parseInt(inp.dataset.itemId, 10);
+    const qty = parseInt(inp.value, 10) || 0;
+    receivedItems.push({ item_id: itId, received_qty: qty });
+  });
+
+  const notes = (document.getElementById('verify-modal-notes')?.value || '').trim();
+  const btn = document.getElementById('confirm-verify-btn');
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await fetch(`/api/org/contributions/${activeVerifyContribution.id}/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ received_items: receivedItems, notes: notes })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to verify contribution.');
+    }
+
+    showToast(data.message || 'Contribution verified successfully!');
+    closeVerifyContributionModal();
+
+    if (currentRecordsBroadcast) {
+      await openOrgBroadcastRecordsPage(currentRecordsBroadcast.id);
+    }
+    loadOrgBroadcasts();
+    broadcastFeedSync();
+  } catch (err) {
+    console.error('Error verifying contribution:', err);
+    showToast(err.message, true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function confirmCancelContribution(contribId, refCode) {
+  openConfirmModal(
+    `Are you sure you want to mark pledge ${refCode} as cancelled / no-show? This will release the pledged supplies count.`,
+    async () => {
+      try {
+        const res = await fetch(`/api/org/contributions/${contribId}/cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: 'Marked as cancelled / no-show.' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to cancel pledge.');
+        showToast(`Pledge ${refCode} has been cancelled.`);
+        if (currentRecordsBroadcast) {
+          await openOrgBroadcastRecordsPage(currentRecordsBroadcast.id);
+        }
+        loadOrgBroadcasts();
+        broadcastFeedSync();
+      } catch (err) {
+        console.error('Error cancelling contribution:', err);
+        showToast(err.message, true);
+      }
+    }
+  );
+}
+
+// --------------------------------------------------------------------------
+// 18. MY RELIEF CONTRIBUTIONS (Contributor Pledge History Engine)
+// --------------------------------------------------------------------------
+async function loadMyContributions() {
+  const container = document.getElementById('my-contributions-container');
+  if (!container) return;
+
+  container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748B;">Loading contribution records...</div>';
+
+  try {
+    const res = await fetch('/api/user/contributions');
+    if (!res.ok) throw new Error('Failed to load contributions.');
+    const data = await res.json();
+    const list = data.contributions || [];
+
+    if (list.length === 0) {
+      container.innerHTML = `
+        <div style="background: #FFFFFF; border: 1px dashed #CBD5E1; border-radius: 12px; padding: 3rem 1.5rem; text-align: center;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8" style="margin-bottom: 0.75rem;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+          <h3 style="font-size: 1.1rem; font-weight: 700; color: #334155; margin: 0 0 6px 0;">No Contributions Yet</h3>
+          <p style="font-size: 0.88rem; color: #64748B; max-width: 480px; margin: 0 auto 1.25rem auto;">
+            You haven't pledged toward any organization relief drives yet. Browse open drives to contribute storybooks, learning materials, or study kits.
+          </p>
+          <button type="button" class="btn-primary btn-sm" onclick="navigateTo('${currentUser && currentUser.role === 'Organization' ? 'org-broadcasts' : 'feed'}')">
+            Browse Needed Broadcasts
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = list.map(c => {
+      const isVerified = c.status === 'verified_received';
+      const isPending = c.status === 'pending_dropoff';
+      const badgeClass = isVerified ? 'badge-green' : (isPending ? 'badge-amber' : 'badge-neutral');
+      const badgeText = isVerified ? 'Verified Received' : (isPending ? 'Pending Drop-off' : 'Cancelled');
+
+      return `
+        <div class="create-broadcast-card" style="margin-bottom: 1.25rem; border-left: 4px solid ${isVerified ? '#059669' : (isPending ? '#F59E0B' : '#94A3B8')}; text-align: left;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px;">
+                <span style="font-family: monospace; font-weight: 800; font-size: 1.05rem; color: ${isVerified ? '#14532D' : '#92400E'}; background: ${isVerified ? '#DCFCE7' : '#FEF3C7'}; padding: 2px 8px; border-radius: 6px;">${escapeHtml(c.reference_code)}</span>
+                <span class="badge ${badgeClass}">${badgeText}</span>
+                ${getUrgencyBadgeHtml(c.urgency_mode)}
+              </div>
+              <h3 style="font-size: 1.15rem; font-weight: 800; color: #0F172A; margin: 0 0 2px 0;">${escapeHtml(c.broadcast_title || 'Relief Drive')}</h3>
+              <div style="font-size: 0.84rem; color: #475569;">
+                Organized by <strong>${escapeHtml(c.org_name || 'Organization')}</strong> &bull; Pledged on ${escapeHtml(c.created_at)}
+              </div>
+            </div>
+            ${isPending ? `
+              <button type="button" class="btn-outline btn-sm" onclick="confirmCancelContribution(${c.id}, '${escapeAttr(c.reference_code)}')" style="color: #DC2626; border-color: #FECACA;">
+                Cancel Pledge
+              </button>
+            ` : ''}
+          </div>
+
+          <!-- Drop Point Notice -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 0.75rem;">
+            <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 2px;">Designated Drop-Off Point:</span>
+            <div style="font-size: 0.88rem; font-weight: 600; color: #0F172A;">${escapeHtml(c.safe_drop_point || 'Campus Drop-Off Point')}</div>
+          </div>
+
+          <!-- Items Breakdown -->
+          <div style="margin-bottom: 0.65rem;">
+            <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 4px;">Pledged Supplies:</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+              ${(c.items || []).map(it => `
+                <div style="background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 4px 10px; font-size: 0.82rem;">
+                  <strong style="color: ${isVerified ? '#059669' : '#0F172A'};">${isVerified ? (it.received_qty != null ? it.received_qty : it.pledged_qty) : (it.pledged_qty || it.quantity || 0)} ${escapeHtml(it.unit || 'units')}</strong>
+                  &bull; ${escapeHtml(it.item_name)}
+                  ${it.age_bracket ? `<span style="color: #64748B; font-size: 0.74rem;">(${escapeHtml(it.age_bracket)})</span>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          ${isVerified ? `
+            <div style="font-size: 0.8rem; color: #059669; font-weight: 600;">
+              Physically verified on ${escapeHtml(c.verified_at)} by ${escapeHtml(c.verified_by || 'Organization')}
+            </div>
+          ` : `
+            <div style="font-size: 0.78rem; color: #D97706;">
+              Please bring items to the drop-off point and present reference code <strong>${escapeHtml(c.reference_code)}</strong> to complete verification.
+            </div>
+          `}
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Error loading my contributions:', err);
+    container.innerHTML = `<div style="padding: 2rem; text-align: center; color: #DC2626;">${escapeHtml(err.message)}</div>`;
+  }
 }

@@ -34,9 +34,17 @@ from models import (
     ExchangeRequest,
     Message,
     FeedRequest,
+    OrgBroadcast,
+    OrgBroadcastItem,
+    BroadcastContribution,
     VALID_USER_ROLES,
-    VALID_USER_STATUSES
+    VALID_USER_STATUSES,
+    VALID_URGENCY_MODES,
+    VALID_ROAD_CONDITIONS
 )
+import csv
+import io
+from flask import Response
 
 try:
     from dotenv import load_dotenv
@@ -358,6 +366,24 @@ def api_student_required(f):
         if user.normalized_role != 'Student':
             return jsonify({
                 'error': 'Access Denied: Only Student accounts can broadcast or respond to the Student Request Feed.'
+            }), 403
+        return f(user, *args, **kwargs)
+    return decorated
+
+
+def api_organization_required(f):
+    """
+    Role Access Isolation for Organization Operations:
+    Accessible by Organizations and Admins (for oversight).
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required. Please log in.'}), 401
+        if user.normalized_role not in ('Organization', 'Admin'):
+            return jsonify({
+                'error': 'Access Denied: Only verified Organization or Administrator accounts can perform this action.'
             }), 403
         return f(user, *args, **kwargs)
     return decorated
@@ -1243,9 +1269,21 @@ def api_get_active_feed(current_user):
         .all()
     )
     serialized = [post.to_dict() for post in feed_posts]
+
+    org_broadcasts = (
+        OrgBroadcast.query.filter_by(is_active=True)
+        .order_by(
+            OrgBroadcast.urgency_mode.in_(['crisis_shelter', 'crisis_school']).desc(),
+            OrgBroadcast.created_at.desc()
+        )
+        .all()
+    )
+    serialized_org = [b.to_dict() for b in org_broadcasts]
+
     return jsonify({
         'feed_requests': serialized,
         'items': serialized,
+        'org_broadcasts': serialized_org,
         'total': len(serialized)
     })
 
@@ -1407,6 +1445,559 @@ def api_respond_to_feed_request(current_user, feed_id):
         'request': new_exchange_req.to_dict(include_messages=True),
         'item': reserved_item.to_dict()
     }), 201
+
+
+# ---------------------------------------------------------------------------
+# Organization Needs Broadcasts & Emergency Logistics API Endpoints
+# ---------------------------------------------------------------------------
+@app.route('/api/org/broadcasts', methods=['GET'])
+@api_login_required
+def api_get_org_broadcasts(current_user):
+    """
+    Returns organization needs broadcasts separated into 'my_broadcasts' and 'community_broadcasts'.
+    - If accessed by an Organization, returns their own drives (active & closed) and partner drives (active).
+    - If accessed by Admin, returns all drives with separation.
+    - If accessed by Student, returns active broadcasts.
+    """
+    if current_user.normalized_role == 'Admin':
+        all_broadcasts = OrgBroadcast.query.order_by(OrgBroadcast.created_at.desc()).all()
+        my_broadcasts = [b for b in all_broadcasts if b.org_id == current_user.id]
+        community_broadcasts = [b for b in all_broadcasts if b.org_id != current_user.id]
+        broadcasts = all_broadcasts
+    elif current_user.normalized_role == 'Organization':
+        my_broadcasts = OrgBroadcast.query.filter_by(org_id=current_user.id).order_by(OrgBroadcast.created_at.desc()).all()
+        community_broadcasts = OrgBroadcast.query.filter(OrgBroadcast.org_id != current_user.id, OrgBroadcast.is_active == True).order_by(OrgBroadcast.created_at.desc()).all()
+        broadcasts = my_broadcasts + community_broadcasts
+    else:
+        broadcasts = OrgBroadcast.query.filter_by(is_active=True).order_by(OrgBroadcast.created_at.desc()).all()
+        my_broadcasts = []
+        community_broadcasts = broadcasts
+
+    return jsonify({
+        'broadcasts': [b.to_dict() for b in broadcasts],
+        'my_broadcasts': [b.to_dict() for b in my_broadcasts],
+        'community_broadcasts': [b.to_dict() for b in community_broadcasts],
+        'total': len(broadcasts)
+    })
+
+
+
+@app.route('/api/org/broadcasts/<int:broadcast_id>', methods=['GET'])
+@api_login_required
+def api_get_single_org_broadcast(current_user, broadcast_id):
+    broadcast = db.session.get(OrgBroadcast, broadcast_id)
+    if not broadcast:
+        return jsonify({'error': 'Broadcast not found.'}), 404
+    return jsonify({'broadcast': broadcast.to_dict()})
+
+
+@app.route('/api/org/broadcasts/create', methods=['POST'])
+@api_organization_required
+def api_create_org_broadcast(current_user):
+    """
+    Creates a new Needs Broadcast with urgency mode, disaster logistics, and items.
+    """
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    title = (data.get('title') or '').strip()
+    urgency_mode = (data.get('urgency_mode') or 'crisis_shelter').strip()
+    road_condition = (data.get('road_condition') or 'Motorable').strip()
+    safe_drop_point = (data.get('safe_drop_point') or '').strip()
+    location = (data.get('location') or '').strip()
+    description = (data.get('description') or '').strip()
+    beneficiary_count = int(data.get('beneficiary_count') or 0)
+    items_raw = data.get('items') or []
+
+    if not title:
+        return jsonify({'error': 'Broadcast title is required.'}), 400
+    if not safe_drop_point or not location:
+        return jsonify({'error': 'Relief location and safe drop-point are required.'}), 400
+    if urgency_mode not in VALID_URGENCY_MODES:
+        urgency_mode = 'crisis_shelter'
+    if road_condition not in VALID_ROAD_CONDITIONS:
+        road_condition = 'Motorable'
+
+    new_broadcast = OrgBroadcast(
+        org_id=current_user.id,
+        title=title,
+        urgency_mode=urgency_mode,
+        beneficiary_count=beneficiary_count,
+        road_condition=road_condition,
+        safe_drop_point=safe_drop_point,
+        location=location,
+        description=description,
+        is_active=True
+    )
+    db.session.add(new_broadcast)
+    db.session.flush()
+
+    for item_data in items_raw:
+        item_name = (item_data.get('item_name') or item_data.get('name') or '').strip()
+        if not item_name:
+            continue
+        age_bracket = (item_data.get('age_bracket') or 'General').strip()
+        try:
+            qty_needed = int(item_data.get('quantity_needed') or item_data.get('qty') or 1)
+        except (ValueError, TypeError):
+            qty_needed = 1
+        unit = (item_data.get('unit') or 'units').strip()
+
+        broadcast_item = OrgBroadcastItem(
+            broadcast_id=new_broadcast.id,
+            age_bracket=age_bracket,
+            item_name=item_name,
+            quantity_needed=max(1, qty_needed),
+            quantity_secured=0,
+            unit=unit
+        )
+        db.session.add(broadcast_item)
+
+    db.session.commit()
+    return jsonify({
+        'message': 'Needs Broadcast published successfully.',
+        'broadcast': new_broadcast.to_dict()
+    }), 201
+
+
+@app.route('/api/org/broadcasts/<int:broadcast_id>', methods=['PUT'])
+@api_organization_required
+def api_update_org_broadcast(current_user, broadcast_id):
+    broadcast = db.session.get(OrgBroadcast, broadcast_id)
+    if not broadcast:
+        return jsonify({'error': 'Broadcast not found.'}), 404
+
+    if current_user.normalized_role != 'Admin' and broadcast.org_id != current_user.id:
+        return jsonify({'error': 'Access Denied: You cannot modify another organization\'s broadcast.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    if 'title' in data and data['title'].strip():
+        broadcast.title = data['title'].strip()
+    if 'urgency_mode' in data and data['urgency_mode'] in VALID_URGENCY_MODES:
+        broadcast.urgency_mode = data['urgency_mode']
+    if 'road_condition' in data and data['road_condition'] in VALID_ROAD_CONDITIONS:
+        broadcast.road_condition = data['road_condition']
+    if 'safe_drop_point' in data and data['safe_drop_point'].strip():
+        broadcast.safe_drop_point = data['safe_drop_point'].strip()
+    if 'location' in data and data['location'].strip():
+        broadcast.location = data['location'].strip()
+    if 'description' in data:
+        broadcast.description = data['description'].strip()
+    if 'beneficiary_count' in data:
+        try:
+            broadcast.beneficiary_count = int(data['beneficiary_count'])
+        except (ValueError, TypeError):
+            pass
+
+    if 'items' in data and isinstance(data['items'], list):
+        existing_items = {i.id: i for i in broadcast.items}
+        updated_ids = set()
+        for it in data['items']:
+            it_name = (it.get('item_name') or '').strip()
+            if not it_name:
+                continue
+            it_id = it.get('id')
+            try:
+                qty_needed = int(it.get('quantity_needed') or 1)
+            except (ValueError, TypeError):
+                qty_needed = 1
+            age_bracket = (it.get('age_bracket') or 'General').strip()
+            unit = (it.get('unit') or 'items').strip()
+
+            if it_id and it_id in existing_items:
+                item_obj = existing_items[it_id]
+                item_obj.item_name = it_name
+                item_obj.age_bracket = age_bracket
+                item_obj.quantity_needed = qty_needed
+                item_obj.unit = unit
+                updated_ids.add(it_id)
+            else:
+                try:
+                    qty_sec = int(it.get('quantity_secured') or 0)
+                except (ValueError, TypeError):
+                    qty_sec = 0
+                new_item = OrgBroadcastItem(
+                    broadcast_id=broadcast.id,
+                    age_bracket=age_bracket,
+                    item_name=it_name,
+                    quantity_needed=qty_needed,
+                    quantity_secured=qty_sec,
+                    unit=unit
+                )
+                db.session.add(new_item)
+
+        for old_id, old_item in existing_items.items():
+            if old_id not in updated_ids:
+                db.session.delete(old_item)
+
+    db.session.commit()
+    return jsonify({
+        'message': 'Broadcast updated successfully.',
+        'broadcast': broadcast.to_dict()
+    })
+
+
+@app.route('/api/org/broadcasts/<int:broadcast_id>', methods=['DELETE'])
+@api_organization_required
+def api_delete_org_broadcast(current_user, broadcast_id):
+    broadcast = db.session.get(OrgBroadcast, broadcast_id)
+    if not broadcast:
+        return jsonify({'error': 'Broadcast not found.'}), 404
+
+    if current_user.normalized_role != 'Admin' and broadcast.org_id != current_user.id:
+        return jsonify({'error': 'Access Denied: You cannot delete another organization\'s broadcast.'}), 403
+
+    db.session.delete(broadcast)
+    db.session.commit()
+    return jsonify({'message': 'Broadcast deleted successfully.'})
+
+
+@app.route('/api/org/broadcasts/<int:broadcast_id>/close', methods=['POST'])
+@api_organization_required
+def api_toggle_close_org_broadcast(current_user, broadcast_id):
+    broadcast = db.session.get(OrgBroadcast, broadcast_id)
+    if not broadcast:
+        return jsonify({'error': 'Broadcast not found.'}), 404
+
+    if current_user.normalized_role != 'Admin' and broadcast.org_id != current_user.id:
+        return jsonify({'error': 'Access Denied: You cannot manage another organization\'s broadcast.'}), 403
+
+    broadcast.is_active = not broadcast.is_active
+    db.session.commit()
+    status_str = 'active' if broadcast.is_active else 'closed / completed'
+    return jsonify({
+        'message': f'Broadcast status updated to {status_str}.',
+        'broadcast': broadcast.to_dict()
+    })
+
+
+def generate_contribution_reference_code():
+    for _ in range(50):
+        code = f"SL-{random.randint(1000, 9999)}"
+        if not BroadcastContribution.query.filter_by(reference_code=code).first():
+            return code
+    return f"SL-{int(datetime.utcnow().timestamp()) % 100000}"
+
+
+@app.route('/api/org/broadcasts/<int:broadcast_id>/batch-fulfill', methods=['POST'])
+@app.route('/api/org/broadcasts/<int:broadcast_id>/fulfill-batch', methods=['POST'])
+@app.route('/api/org/broadcasts/<int:broadcast_id>/item-secured', methods=['POST'])
+@api_login_required
+def api_increment_item_secured(current_user, broadcast_id):
+    """
+    Two-step pledge and verification recording:
+    - If caller is the Broadcast Owner (or Admin):
+      Physical walk-in supplies are recorded directly as 'verified_received' into the ledger,
+      and quantity_secured is incremented immediately.
+    - If caller is a Student or Other Organization (Pledger):
+      Saved as 'pending_dropoff' with a unique reference code (e.g. SL-4821).
+      quantity_secured is NOT incremented yet until physical verification by the owner.
+    """
+    broadcast = db.session.get(OrgBroadcast, broadcast_id)
+    if not broadcast or not broadcast.is_active:
+        return jsonify({'error': 'This relief broadcast is no longer active or was not found.'}), 404
+
+    data = request.get_json(silent=True) or {}
+    items_payload = data.get('items')
+    donor_name = (data.get('donor_name') or '').strip()
+    notes = (data.get('notes') or '').strip()
+
+    is_owner = current_user and (broadcast.org_id == current_user.id or current_user.role == 'Admin')
+
+    contribution_items = []
+    total_qty = 0
+
+    if items_payload and isinstance(items_payload, list):
+        for entry in items_payload:
+            it_id = entry.get('item_id')
+            try:
+                qty = int(entry.get('quantity') or 0)
+            except (ValueError, TypeError):
+                qty = 0
+            if qty > 0 and it_id:
+                target_item = db.session.get(OrgBroadcastItem, it_id)
+                if target_item and target_item.broadcast_id == broadcast.id:
+                    contribution_items.append({
+                        'item_id': target_item.id,
+                        'item_name': target_item.item_name,
+                        'age_bracket': target_item.age_bracket,
+                        'pledged_qty': qty,
+                        'received_qty': qty if is_owner else 0,
+                        'unit': target_item.unit
+                    })
+                    total_qty += qty
+                    if is_owner:
+                        target_item.quantity_secured += qty
+        if not contribution_items:
+            return jsonify({'error': 'Please enter a quantity greater than 0 for at least one item.'}), 400
+    else:
+        # Fallback single item
+        item_id = data.get('item_id')
+        try:
+            qty = int(data.get('quantity') or 1)
+        except (ValueError, TypeError):
+            qty = 1
+
+        if not item_id or qty < 1:
+            return jsonify({'error': 'Valid item_id and quantity >= 1 required.'}), 400
+
+        target_item = db.session.get(OrgBroadcastItem, item_id)
+        if not target_item or target_item.broadcast_id != broadcast.id:
+            return jsonify({'error': 'Item not found in this broadcast.'}), 404
+
+        contribution_items.append({
+            'item_id': target_item.id,
+            'item_name': target_item.item_name,
+            'age_bracket': target_item.age_bracket,
+            'pledged_qty': qty,
+            'received_qty': qty if is_owner else 0,
+            'unit': target_item.unit
+        })
+        total_qty = qty
+        if is_owner:
+            target_item.quantity_secured += qty
+
+    ref_code = generate_contribution_reference_code()
+    now = datetime.utcnow()
+
+    if is_owner:
+        c_name = donor_name or 'Offline / Walk-in Donor'
+        c_type = 'offline_walkin'
+        contrib = BroadcastContribution(
+            broadcast_id=broadcast.id,
+            reference_code=ref_code,
+            contributor_id=current_user.id,
+            contributor_name=c_name,
+            contributor_type=c_type,
+            status='verified_received',
+            notes=notes or 'Offline physical supplies logged by organization.',
+            created_at=now,
+            verified_at=now,
+            verified_by=current_user.name
+        )
+        contrib.set_items(contribution_items)
+        db.session.add(contrib)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'is_owner': True,
+            'reference_code': ref_code,
+            'message': f'Recorded and verified {total_qty} physical item(s) received into permanent records.',
+            'broadcast': broadcast.to_dict()
+        })
+    else:
+        c_name = current_user.name or ('Organization' if current_user.role == 'Organization' else 'Student Contributor')
+        c_type = 'organization' if current_user.role == 'Organization' else 'student'
+        contrib = BroadcastContribution(
+            broadcast_id=broadcast.id,
+            reference_code=ref_code,
+            contributor_id=current_user.id,
+            contributor_name=c_name,
+            contributor_type=c_type,
+            status='pending_dropoff',
+            notes=notes,
+            created_at=now
+        )
+        contrib.set_items(contribution_items)
+        db.session.add(contrib)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'is_owner': False,
+            'reference_code': ref_code,
+            'contribution': contrib.to_dict(),
+            'message': f'Pledge registered! Your reference code is {ref_code}. Please quote this when dropping off supplies.',
+            'broadcast': broadcast.to_dict()
+        })
+
+
+@app.route('/api/org/broadcasts/<int:broadcast_id>/contributions', methods=['GET'])
+@api_login_required
+def api_get_broadcast_contributions(current_user, broadcast_id):
+    broadcast = db.session.get(OrgBroadcast, broadcast_id)
+    if not broadcast:
+        return jsonify({'error': 'Broadcast not found.'}), 404
+
+    if broadcast.org_id != current_user.id and current_user.role != 'Admin':
+        return jsonify({'error': 'Access denied.'}), 403
+
+    contributions = BroadcastContribution.query.filter_by(broadcast_id=broadcast.id).order_by(BroadcastContribution.created_at.desc()).all()
+    return jsonify({
+        'broadcast': broadcast.to_dict(),
+        'contributions': [c.to_dict() for c in contributions]
+    })
+
+
+@app.route('/api/org/contributions/<int:contribution_id>/verify', methods=['POST'])
+@api_login_required
+def api_verify_contribution(current_user, contribution_id):
+    contrib = db.session.get(BroadcastContribution, contribution_id)
+    if not contrib:
+        return jsonify({'error': 'Contribution record not found.'}), 404
+
+    broadcast = contrib.broadcast
+    if not broadcast:
+        return jsonify({'error': 'Associated broadcast not found.'}), 404
+
+    if broadcast.org_id != current_user.id and current_user.role != 'Admin':
+        return jsonify({'error': 'Only the broadcast organization can verify physical supplies.'}), 403
+
+    if contrib.status == 'verified_received':
+        return jsonify({'error': 'This contribution has already been verified.'}), 400
+
+    data = request.get_json(silent=True) or {}
+    custom_received_items = data.get('received_items')  # optional override list: [{ item_id, received_qty }]
+
+    items = contrib.get_items()
+    total_newly_secured = 0
+
+    override_map = {}
+    if custom_received_items and isinstance(custom_received_items, list):
+        for entry in custom_received_items:
+            try:
+                override_map[int(entry.get('item_id'))] = max(0, int(entry.get('received_qty', 0)))
+            except (ValueError, TypeError):
+                pass
+
+    for it in items:
+        it_id = it.get('item_id')
+        pledged = int(it.get('pledged_qty') or it.get('quantity') or 0)
+        actual_recvd = override_map.get(it_id, pledged) if (override_map and it_id in override_map) else pledged
+        it['received_qty'] = actual_recvd
+
+        if it_id and actual_recvd > 0:
+            target_item = db.session.get(OrgBroadcastItem, it_id)
+            if target_item and target_item.broadcast_id == broadcast.id:
+                target_item.quantity_secured += actual_recvd
+                total_newly_secured += actual_recvd
+
+    contrib.set_items(items)
+    contrib.status = 'verified_received'
+    contrib.verified_at = datetime.utcnow()
+    contrib.verified_by = current_user.name
+    if data.get('notes'):
+        contrib.notes = (contrib.notes or '') + (' | Note: ' + data.get('notes').strip())
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'Verified physical drop-off for reference {contrib.reference_code}. Added {total_newly_secured} items to secured totals.',
+        'contribution': contrib.to_dict(),
+        'broadcast': broadcast.to_dict()
+    })
+
+
+@app.route('/api/org/contributions/<int:contribution_id>/cancel', methods=['POST'])
+@api_login_required
+def api_cancel_contribution(current_user, contribution_id):
+    contrib = db.session.get(BroadcastContribution, contribution_id)
+    if not contrib:
+        return jsonify({'error': 'Contribution record not found.'}), 404
+
+    broadcast = contrib.broadcast
+    if not broadcast:
+        return jsonify({'error': 'Associated broadcast not found.'}), 404
+
+    is_owner = broadcast.org_id == current_user.id or current_user.role == 'Admin'
+    is_contributor = contrib.contributor_id == current_user.id
+
+    if not is_owner and not is_contributor:
+        return jsonify({'error': 'Access denied.'}), 403
+
+    if contrib.status == 'verified_received':
+        return jsonify({'error': 'Cannot cancel an already verified physical contribution.'}), 400
+
+    data = request.get_json(silent=True) or {}
+    reason = (data.get('reason') or '').strip()
+
+    contrib.status = 'cancelled'
+    if reason:
+        contrib.notes = (contrib.notes or '') + (' | Cancelled: ' + reason)
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'Contribution {contrib.reference_code} marked as cancelled.',
+        'contribution': contrib.to_dict(),
+        'broadcast': broadcast.to_dict()
+    })
+
+
+@app.route('/api/org/broadcasts/<int:broadcast_id>/contributions/export.csv', methods=['GET'])
+@api_login_required
+def api_export_broadcast_contributions(current_user, broadcast_id):
+    broadcast = db.session.get(OrgBroadcast, broadcast_id)
+    if not broadcast:
+        return jsonify({'error': 'Broadcast not found.'}), 404
+    if broadcast.org_id != current_user.id and current_user.role != 'Admin':
+        return jsonify({'error': 'Access denied.'}), 403
+
+    contributions = BroadcastContribution.query.filter_by(broadcast_id=broadcast.id).order_by(BroadcastContribution.created_at.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        'Reference Code',
+        'Date Pledged',
+        'Status',
+        'Contributor Name',
+        'Contributor Type',
+        'Items Breakdown',
+        'Total Pledged Qty',
+        'Total Received Qty',
+        'Verified Date',
+        'Verified By',
+        'Notes'
+    ])
+    for c in contributions:
+        c_dict = c.to_dict()
+        items_summary = "; ".join([
+            f"{it.get('item_name')} ({it.get('pledged_qty')} {it.get('unit', '')} pledged, {it.get('received_qty', 0)} recvd)"
+            for it in c.get_items()
+        ])
+        writer.writerow([
+            c.reference_code,
+            c.created_at.strftime('%Y-%m-%d %H:%M') if c.created_at else '',
+            c.status,
+            c.contributor_name,
+            c.contributor_type,
+            items_summary,
+            c_dict.get('total_items_pledged', 0),
+            c_dict.get('total_items_received', 0),
+            c.verified_at.strftime('%Y-%m-%d %H:%M') if c.verified_at else '',
+            c.verified_by or '',
+            c.notes or ''
+        ])
+
+    csv_data = output.getvalue()
+    return Response(
+        csv_data,
+        mimetype='text/csv',
+        headers={
+            'Content-Disposition': f'attachment; filename=broadcast_{broadcast.id}_contributions_{datetime.utcnow().strftime("%Y%m%d")}.csv'
+        }
+    )
+
+
+@app.route('/api/user/contributions', methods=['GET'])
+@api_login_required
+def api_get_user_contributions(current_user):
+    pledges = BroadcastContribution.query.filter_by(contributor_id=current_user.id).order_by(BroadcastContribution.created_at.desc()).all()
+    results = []
+    for p in pledges:
+        p_data = p.to_dict()
+        b = p.broadcast
+        if b:
+            p_data['broadcast_title'] = b.title
+            p_data['org_name'] = b.organization.name if b.organization else 'Organization'
+            p_data['safe_drop_point'] = b.safe_drop_point
+            p_data['urgency_mode'] = b.urgency_mode
+            p_data['road_condition'] = b.road_condition
+            p_data['is_active'] = b.is_active
+        results.append(p_data)
+    return jsonify({'contributions': results})
 
 
 # ---------------------------------------------------------------------------
@@ -1955,6 +2546,26 @@ def seed_database():
             db.session.add(child_book)
             db.session.commit()
 
+    demo_student = User.query.filter_by(email='rajesh.kc@gmail.com').first()
+    if not demo_student:
+        demo_student = User(
+            name='Rajesh KC',
+            email='rajesh.kc@gmail.com',
+            phone='(+977) 9848262163',
+            role='Student',
+            dob=date(2002, 8, 19),
+            status='Active',
+            university='Tribhuvan University',
+            completed_exchanges=12
+        )
+        demo_student.set_password('password123')
+        db.session.add(demo_student)
+        db.session.commit()
+    else:
+        demo_student.set_password('password123')
+        demo_student.status = 'Active'
+        db.session.commit()
+
     if User.query.filter_by(role='Student').count() >= 3 and ResourceItem.query.count() > 1:
         if FeedRequest.query.count() == 0:
             seed_feed_requests()
@@ -2219,9 +2830,124 @@ def seed_feed_requests():
         db.session.commit()
 
 
+def seed_org_broadcasts():
+    if OrgBroadcast.query.count() > 0:
+        return
+    org = User.query.filter_by(role='Organization').first()
+    if not org:
+        return
+
+    # Broadcast 1: 🔴 Crisis – Immediate Shelter / Child-Friendly Space (displaced children)
+    crisis_broadcast = OrgBroadcast(
+        org_id=org.id,
+        title='Displaced Children Relief – Helambu Child-Friendly Learning Camp',
+        urgency_mode='crisis_shelter',
+        beneficiary_count=50,
+        road_condition='4WD / Pickup Only',
+        safe_drop_point='Chautara Red Cross Logistics Hub / Melamchi Relief Post',
+        location='Helambu Rural Municipality Ward 2 (Temporary Flood Shelter)',
+        description='Following recent severe flooding, 50 displaced children are sheltered in community tents. We urgently need creative, comforting, and educational supplies (storybooks, picture books, coloring books, crayons, journals, puzzles, and board games grouped by age brackets) to run a safe, child-friendly learning space while schools are being restored.',
+        is_active=True
+    )
+    db.session.add(crisis_broadcast)
+    db.session.flush()
+
+    items = [
+        # Ages 3–6
+        OrgBroadcastItem(broadcast_id=crisis_broadcast.id, age_bracket='Ages 3–6', item_name='Picture Books & Board Books', quantity_needed=25, quantity_secured=14, unit='books'),
+        OrgBroadcastItem(broadcast_id=crisis_broadcast.id, age_bracket='Ages 3–6', item_name='Coloring Books & Crayon Sets', quantity_needed=30, quantity_secured=18, unit='sets'),
+        # Ages 7–11
+        OrgBroadcastItem(broadcast_id=crisis_broadcast.id, age_bracket='Ages 7–11', item_name='Illustrated Nepali & English Storybooks', quantity_needed=35, quantity_secured=22, unit='books'),
+        OrgBroadcastItem(broadcast_id=crisis_broadcast.id, age_bracket='Ages 7–11', item_name='Drawing Pads & Colored Pencils', quantity_needed=25, quantity_secured=15, unit='packs'),
+        OrgBroadcastItem(broadcast_id=crisis_broadcast.id, age_bracket='Ages 7–11', item_name='Puzzles & Educational Board Games', quantity_needed=10, quantity_secured=5, unit='boxes'),
+        # Ages 12–17
+        OrgBroadcastItem(broadcast_id=crisis_broadcast.id, age_bracket='Ages 12–17', item_name='Youth Fiction & Creative Writing Journals', quantity_needed=20, quantity_secured=11, unit='books'),
+        OrgBroadcastItem(broadcast_id=crisis_broadcast.id, age_bracket='Ages 12–17', item_name='Notebooks, Pens & Geometry Sets', quantity_needed=40, quantity_secured=28, unit='kits'),
+        OrgBroadcastItem(broadcast_id=crisis_broadcast.id, age_bracket='Ages 12–17', item_name='Board Games (Chess, Ludo, Scrabble)', quantity_needed=8, quantity_secured=4, unit='sets'),
+    ]
+    db.session.add_all(items)
+
+    # Broadcast 2: 🟠 Crisis – School Recovery (textbooks, notebooks, stationery, backpacks)
+    school_broadcast = OrgBroadcast(
+        org_id=org.id,
+        title='Post-Flood School Recovery Drive – Shree Jalpa Secondary School',
+        urgency_mode='crisis_school',
+        beneficiary_count=75,
+        road_condition='Motorable',
+        safe_drop_point='Bahunepati Bridge Relief Collection Point',
+        location='Melamchi Valley, Sindhupalchok',
+        description='Floodwaters inundated ground-floor classrooms and destroyed school libraries and student bags. We are collecting Class 1–10 school textbooks, exercise notebooks, stationery supplies, and backpacks to get students back to class next week.',
+        is_active=True
+    )
+    db.session.add(school_broadcast)
+    db.session.flush()
+
+    school_items = [
+        OrgBroadcastItem(broadcast_id=school_broadcast.id, age_bracket='Class 1–5', item_name='Primary Grade Textbooks (Math, Science, Nepali, English)', quantity_needed=45, quantity_secured=25, unit='books'),
+        OrgBroadcastItem(broadcast_id=school_broadcast.id, age_bracket='Class 6–10', item_name='Secondary School Textbooks & Reference Books', quantity_needed=60, quantity_secured=38, unit='books'),
+        OrgBroadcastItem(broadcast_id=school_broadcast.id, age_bracket='All Grades', item_name='Ruled Exercise Notebooks (100–200 pages)', quantity_needed=150, quantity_secured=95, unit='notebooks'),
+        OrgBroadcastItem(broadcast_id=school_broadcast.id, age_bracket='All Grades', item_name='Complete Stationery Kits (Pens, Pencils, Erasers, Rulers)', quantity_needed=75, quantity_secured=42, unit='kits'),
+        OrgBroadcastItem(broadcast_id=school_broadcast.id, age_bracket='All Grades', item_name='Durable School Backpacks', quantity_needed=50, quantity_secured=21, unit='bags'),
+    ]
+    db.session.add_all(school_items)
+
+    # Broadcast 3: 🟡 Seasonal Drive (Partner Org 2: Campus Book Bank Foundation)
+    org2 = User.query.filter(User.id != org.id, User.role == 'Organization').first()
+    if org2:
+        seasonal_broadcast = OrgBroadcast(
+            org_id=org2.id,
+            title='Winter Educational Book Drive – Solukhumbu Learning Centres',
+            urgency_mode='seasonal_drive',
+            beneficiary_count=60,
+            road_condition='Motorable',
+            safe_drop_point='Salleri Central Community Hall / Post',
+            location='Salleri & Phaplu, Solukhumbu',
+            description='Collecting curriculum textbooks, storybooks, and creative stationery for 60 primary school students across remote community learning centres before winter closure.',
+            is_active=True
+        )
+        db.session.add(seasonal_broadcast)
+        db.session.flush()
+
+        seasonal_items = [
+            OrgBroadcastItem(broadcast_id=seasonal_broadcast.id, age_bracket='Ages 7–11', item_name='Winter Reading & Nepali Storybooks', quantity_needed=50, quantity_secured=32, unit='books'),
+            OrgBroadcastItem(broadcast_id=seasonal_broadcast.id, age_bracket='Ages 7–11', item_name='STEM & Math Activity Workbooks', quantity_needed=40, quantity_secured=18, unit='workbooks'),
+            OrgBroadcastItem(broadcast_id=seasonal_broadcast.id, age_bracket='Ages 3–6', item_name='Coloring Books & Crayon Packs', quantity_needed=30, quantity_secured=24, unit='packs'),
+            OrgBroadcastItem(broadcast_id=seasonal_broadcast.id, age_bracket='Ages 12–17', item_name='General Science & Atlas Reference Guides', quantity_needed=20, quantity_secured=9, unit='books'),
+        ]
+        db.session.add_all(seasonal_items)
+
+    # Broadcast 4: 🟢 Ongoing Project (Partner Org 11 / 3)
+    org3 = User.query.filter(User.id != org.id, User.id != (org2.id if org2 else None), User.role == 'Organization').first()
+    if org3:
+        ongoing_broadcast = OrgBroadcast(
+            org_id=org3.id,
+            title='Community Science & Reference Hub – Dhading Literacy Outreach',
+            urgency_mode='ongoing_project',
+            beneficiary_count=45,
+            road_condition='4WD / Pickup Only',
+            safe_drop_point='Dhading Besi Youth Information Center',
+            location='Nilkantha Municipality, Dhading',
+            description='Establishing a shared reference lending library for rural middle and high school students. In need of science dictionaries, engineering guides, and brain-teaser board games.',
+            is_active=True
+        )
+        db.session.add(ongoing_broadcast)
+        db.session.flush()
+
+        ongoing_items = [
+            OrgBroadcastItem(broadcast_id=ongoing_broadcast.id, age_bracket='Class 8–10', item_name='Secondary Physics & Chemistry Textbooks', quantity_needed=35, quantity_secured=20, unit='books'),
+            OrgBroadcastItem(broadcast_id=ongoing_broadcast.id, age_bracket='All Ages', item_name='Oxford English & Nepali Dictionaries', quantity_needed=20, quantity_secured=14, unit='books'),
+            OrgBroadcastItem(broadcast_id=ongoing_broadcast.id, age_bracket='All Ages', item_name='Chess Sets & Logic Brain Teasers', quantity_needed=15, quantity_secured=8, unit='sets'),
+        ]
+        db.session.add_all(ongoing_items)
+
+    db.session.commit()
+
+
+
 with app.app_context():
     db.create_all()
     seed_database()
+    seed_org_broadcasts()
 
 
 if __name__ == '__main__':
