@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ShareLoop — Sign In or Create Account</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=15" />
+  <title>ShareLoop — Share books with ease</title>
+  <meta name="theme-color" content="#E8EFF5" />
+  <link rel="icon" href="{{ url_for('static', filename='brand/favicon.ico') }}" sizes="any" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='brand/shareloop-app-icon.svg') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='brand/apple-touch-icon.png') }}" />
+  <link rel="preload" href="{{ url_for('static', filename='fonts/plus-jakarta-sans-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" as="image" href="{{ url_for('static', filename='img/hero-valley.jpg') }}" imagesrcset="{{ url_for('static', filename='img/hero-valley-sm.jpg') }} 1100w, {{ url_for('static', filename='img/hero-valley.jpg') }} 2200w" imagesizes="100vw" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=60" />
 </head>
 <body class="auth-body">
   <!-- Animated Overlay Validation Modal (Success Checkmark / Rejection Alert) -->
@@ -27,7 +30,7 @@
   <!-- Forgot Password Request Modal -->
   <div id="forgot-modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="forgot-modal-heading">
     <div class="modal-card auth-validation-modal">
-      <div class="modal-icon-circle" style="background-color: #E0E7FF; color: #4338CA; border: 1.5px solid #C7D2FE;">
+      <div class="modal-icon-circle" style="background-color: var(--pen-wash); color: var(--pen-deep);">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
           <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
@@ -105,43 +108,163 @@
     </div>
   </div>
 
-  <div class="auth-wrapper">
-    <!-- Left Brand & Campus Impact Showcase -->
-    <div class="auth-showcase">
-      <div class="auth-brand">
-        <div class="brand-logo-box">
-          <img src="{{ url_for('static', filename='logo.png') }}?v=2" alt="ShareLoop Logo" class="brand-logo-img" />
-        </div>
-        <span class="brand-title">ShareLoop</span>
-      </div>
+  <!-- Floating glass navigation -->
+  <header class="lp-nav" id="lp-nav">
+    <a class="lp-brand" href="#top" aria-label="ShareLoop home">
+      <span class="brand-logo-box">
+        <img src="{{ url_for('static', filename='brand/shareloop-mark.svg') }}" alt="" class="brand-logo-img" />
+      </span>
+      <span class="brand-title">ShareLoop</span>
+    </a>
+    <nav class="lp-links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#students">Students</a>
+      <a href="#organizations">Organizations</a>
+    </nav>
+    <button type="button" class="lp-login" onclick="openAuth('login')">Sign in</button>
+  </header>
 
-      <div class="auth-hero-copy">
-        <span class="auth-pill">Peer-to-Peer Campus Resource Network</span>
-        <h1>Share textbooks, lab gear, and equipment.</h1>
-        <p>
-          Join verified students, campus partner organizations, and platform moderators lending, donating, and swapping essential study resources with zero platform fees.
+  <main id="top">
+    <!-- Hero: the Pokhara valley -->
+    <section class="lp-hero" aria-labelledby="lp-title">
+      <div class="lp-hero-media">
+        <img
+          id="lp-hero-img"
+          src="{{ url_for('static', filename='img/hero-valley.jpg') }}"
+          srcset="{{ url_for('static', filename='img/hero-valley-sm.jpg') }} 1100w, {{ url_for('static', filename='img/hero-valley.jpg') }} 2200w"
+          sizes="100vw"
+          alt="Terraced fields and villages below the snow-capped Annapurna range near Pokhara"
+          fetchpriority="high"
+        />
+      </div>
+      <div class="lp-hero-veil"></div>
+
+      <div class="lp-hero-content">
+        <span class="lp-chip lp-rise" style="--d: 0"><b>New</b> Relief drives for schools</span>
+        <h1 id="lp-title" class="lp-title" data-split>Share books with ease.</h1>
+        <p class="lp-sub lp-rise" style="--d: 6">
+          Lend, swap and donate textbooks, lab gear and study kits with students on your campus. Free, nearby and verified.
         </p>
-
-        <div class="auth-stats-row">
-          <div class="auth-stat-item">
-            <strong>2 Roles (Student • Organization)</strong>
-            <span>Domain-Verified Campus Access</span>
-          </div>
-          <div class="auth-stat-item">
-            <strong>4-Angle</strong>
-            <span>Direct Photo Inspection</span>
-          </div>
+        <div class="lp-cta lp-rise" style="--d: 7">
+          <button type="button" class="lp-btn-light" onclick="openAuth('register')">Get started <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+          <button type="button" class="lp-btn-ghost" onclick="openAuth('login')">I have an account</button>
         </div>
       </div>
 
-      <div class="auth-footer-note">
-        © 2026 ShareLoop University Exchange • Built with Python Flask &amp; SQLAlchemy
+      <div class="lp-float lp-float-a" aria-hidden="true">
+        <span class="lp-float-thumb"></span>
+        <span class="lp-float-body">
+          <strong>Calculus: Early Transcendentals</strong>
+          <small>Shared by a student at Tribhuvan University</small>
+          <span class="pill">Lend</span>
+        </span>
+      </div>
+      <div class="lp-float lp-float-b" aria-hidden="true">
+        <span class="lp-float-body">
+          <strong>Post-flood school recovery drive</strong>
+          <small>221 of 380 supplies secured</small>
+          <span class="lp-float-bar"><i></i></span>
+        </span>
+      </div>
+
+      <a href="#how" class="lp-scroll">Scroll
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+      </a>
+    </section>
+
+    <!-- How it works -->
+    <section class="lp-section" id="how">
+      <div class="lp-head reveal">
+        <h2>From your shelf to someone's bag</h2>
+        <p>Three steps, and it all happens on campus.</p>
+      </div>
+      <ol class="lp-steps">
+        <li class="lp-step reveal" style="--d: 0">
+          <span class="lp-step-n">1</span>
+          <h3>List it</h3>
+          <p>Snap the front and back, choose lend, swap or donate, and your book is live for everyone nearby.</p>
+        </li>
+        <li class="lp-step reveal" style="--d: 1">
+          <span class="lp-step-n">2</span>
+          <h3>Request it</h3>
+          <p>Search by course code or title, check the photos, and send a request with a pickup note.</p>
+        </li>
+        <li class="lp-step reveal" style="--d: 2">
+          <span class="lp-step-n">3</span>
+          <h3>Meet and hand over</h3>
+          <p>Agree on a spot in the chat, meet up, and both confirm the handover when it's done.</p>
+        </li>
+      </ol>
+    </section>
+
+    <div class="lp-marquee" aria-label="Categories you can share">
+      <div class="lp-marquee-track">
+        <span>Primary (Class 1-5)</span><span>Lower Secondary (Class 6-8)</span><span>Secondary (9-10)</span><span>Higher Secondary (Class 11-12)</span><span>Science, Tech &amp; Engineering</span><span>Business &amp; Economics</span><span>Humanities &amp; Arts</span><span>Medicine &amp; Health</span><span>Lab gear &amp; equipment</span><span>Stationery &amp; supplies</span>
+        <span aria-hidden="true">Primary (Class 1-5)</span><span aria-hidden="true">Lower Secondary (Class 6-8)</span><span aria-hidden="true">Secondary (9-10)</span><span aria-hidden="true">Higher Secondary (Class 11-12)</span><span aria-hidden="true">Science, Tech &amp; Engineering</span><span aria-hidden="true">Business &amp; Economics</span><span aria-hidden="true">Humanities &amp; Arts</span><span aria-hidden="true">Medicine &amp; Health</span><span aria-hidden="true">Lab gear &amp; equipment</span><span aria-hidden="true">Stationery &amp; supplies</span>
       </div>
     </div>
 
-    <!-- Right Interactive Authentication Card -->
-    <div class="auth-card-container">
+    <!-- Students and organizations -->
+    <section class="lp-section">
+      <div class="lp-split" id="students">
+        <figure class="lp-photo reveal">
+          <img data-parallax="0.08" src="{{ url_for('static', filename='img/library-student.jpg') }}" alt="A student studying at a long library table between tall bookshelves" loading="lazy" />
+          <figcaption>For students</figcaption>
+        </figure>
+        <div class="reveal" style="--d: 1">
+          <span class="lp-eyebrow-chip">Students</span>
+          <h2>Find this semester's books before the first class</h2>
+          <p>Browse what students near you are sharing, or post what you need and let someone who has it reply with photos.</p>
+          <ul class="lp-list">
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>Filter by course code, condition and exchange type</li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>Four-angle photos, so you know what you're getting</li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>A pickup chat for every request</li>
+          </ul>
+          <button type="button" class="lp-btn-dark" onclick="openAuth('register', 'Student')">Create a student account <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+        </div>
+      </div>
+
+      <div class="lp-split flip" id="organizations">
+        <figure class="lp-photo reveal">
+          <img data-parallax="0.08" src="{{ url_for('static', filename='img/book-fair.jpg') }}" alt="Tables covered in donated books at a school book fair" loading="lazy" />
+          <figcaption>For organizations</figcaption>
+        </figure>
+        <div class="reveal" style="--d: 1">
+          <span class="lp-eyebrow-chip">Organizations</span>
+          <h2>Run relief drives that students can answer</h2>
+          <p>Publish what a school or shelter needs, by age group. Students pledge supplies and bring them to your drop-off point.</p>
+          <ul class="lp-list">
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>Drives with needed supplies and live progress</li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>Every pledge gets a reference code</li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>Verify drop-offs and export your records</li>
+          </ul>
+          <button type="button" class="lp-btn-dark" onclick="openAuth('register', 'Organization')">Register your organization <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Closing band -->
+    <section class="lp-band">
+      <h2 class="reveal">Your old textbooks have another semester in them.</h2>
+      <button type="button" class="lp-btn-light reveal" style="--d: 1" onclick="openAuth('register')">Get started <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+    </section>
+
+    <footer class="lp-footer">
+      <span class="lp-footer-brand">
+        <img src="{{ url_for('static', filename='brand/shareloop-logo.svg') }}" alt="ShareLoop" />
+        © 2026 ShareLoop University Exchange. Built with Python Flask and SQLAlchemy.
+      </span>
+      <span>Photos from <a href="https://unsplash.com" rel="noopener">Unsplash</a></span>
+    </footer>
+  </main>
+
+  <!-- Sign in / create account: slides in from the right -->
+  <div class="auth-drawer" id="auth-drawer" aria-hidden="true">
+    <div class="auth-drawer-scrim" onclick="closeAuth()"></div>
+    <div class="auth-card-container" role="dialog" aria-modal="true" aria-label="Sign in or create an account">
+      <button type="button" class="auth-drawer-close" onclick="closeAuth()" aria-label="Close">&times;</button>
       <div class="auth-card">
+        <img class="auth-logo" src="{{ url_for('static', filename='brand/shareloop-logo.svg') }}" alt="ShareLoop" />
         <!-- View Switcher Tabs -->
         <div class="auth-tabs">
           <button type="button" id="tab-login" class="auth-tab active" onclick="switchAuthTab('login')">
@@ -438,7 +561,7 @@
         emailInput.placeholder = 'contact@abc.org';
         hint.textContent =
           'Organizations must register using an official domain ending in .org (e.g. contact@abc.org).';
-        hint.style.color = '#1b3b2b';
+        hint.style.color = 'var(--pen)';
         if (dobGroup) dobGroup.classList.add('hidden');
         if (dobInput) {
           dobInput.required = false;
@@ -448,7 +571,7 @@
         emailInput.placeholder = 'example@gmail.com';
         hint.textContent =
           'Students may use public domains (gmail.com, yahoo.com, outlook.com) or university domains (.edu, .edu.np).';
-        hint.style.color = '#6b7280';
+        hint.style.color = 'var(--ink-3)';
         if (dobGroup) dobGroup.classList.remove('hidden');
         if (dobInput) {
           dobInput.required = true;
@@ -795,6 +918,103 @@
       showAuthOverlayModal('Password Recovery Link', {{ reset_error|tojson }}, true);
     });
     {% endif %}
+
+    // ------------------------------------------------------------------
+    // Landing page: sign-in drawer, headline words, parallax, reveals
+    // ------------------------------------------------------------------
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function openAuth(mode, role) {
+      switchAuthTab(mode === 'register' ? 'register' : 'login');
+      if (mode === 'register' && role) {
+        const roleSelect = document.getElementById('reg-role');
+        if (roleSelect) {
+          roleSelect.value = role;
+          handleRegisterRoleChange();
+        }
+      }
+      const drawer = document.getElementById('auth-drawer');
+      drawer.classList.add('open');
+      drawer.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('drawer-open');
+      setTimeout(() => {
+        const first = document.getElementById(mode === 'register' ? 'reg-name' : 'login-email');
+        if (first) first.focus({ preventScroll: true });
+      }, 350);
+    }
+
+    function closeAuth() {
+      const drawer = document.getElementById('auth-drawer');
+      drawer.classList.remove('open');
+      drawer.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('drawer-open');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.getElementById('auth-drawer').classList.contains('open')) {
+        const anyModal = document.querySelector('.modal-backdrop:not(.hidden)');
+        if (!anyModal) closeAuth();
+      }
+    });
+
+    // Reopen the drawer for someone who just logged out
+    window.addEventListener('pageshow', () => {
+      const email = document.getElementById('login-email');
+      if (email && email.value) openAuth('login');
+    });
+
+    (function setUpLanding() {
+      // Split the headline into words that rise one after another
+      document.querySelectorAll('[data-split]').forEach((el) => {
+        const words = el.textContent.trim().split(/\s+/);
+        el.setAttribute('aria-label', el.textContent.trim());
+        el.innerHTML = words
+          .map((w, i) => `<span class="w" aria-hidden="true"><span style="--i:${i}">${w}</span></span>`)
+          .join(' ');
+      });
+
+      const nav = document.getElementById('lp-nav');
+      const hero = document.getElementById('lp-hero-img');
+      const parallaxImgs = Array.from(document.querySelectorAll('[data-parallax]'));
+
+      // Reveal sections as they scroll into view
+      if (!prefersReducedMotion && 'IntersectionObserver' in window) {
+        document.documentElement.classList.add('js-reveal');
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('in');
+              io.unobserve(entry.target);
+            }
+          });
+        }, { rootMargin: '0px 0px -12% 0px', threshold: 0.12 });
+        document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+      }
+
+      let ticking = false;
+      function onScroll() {
+        const y = window.scrollY;
+        if (nav) nav.classList.toggle('scrolled', y > 24);
+        if (!prefersReducedMotion) {
+          if (hero && y < window.innerHeight * 1.2) hero.style.setProperty('--py', (y * 0.32).toFixed(1) + 'px');
+          parallaxImgs.forEach((img) => {
+            const r = img.parentElement.getBoundingClientRect();
+            if (r.bottom < 0 || r.top > window.innerHeight) return;
+            const speed = parseFloat(img.dataset.parallax) || 0.08;
+            const offset = (r.top + r.height / 2 - window.innerHeight / 2) * -speed;
+            img.style.setProperty('--py', (offset - r.height * 0.06).toFixed(1) + 'px');
+          });
+        }
+        ticking = false;
+      }
+      window.addEventListener('scroll', () => {
+        if (!ticking) {
+          ticking = true;
+          requestAnimationFrame(onScroll);
+        }
+      }, { passive: true });
+      onScroll();
+    })();
   </script>
 </body>
 </html>

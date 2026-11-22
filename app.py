@@ -52,20 +52,53 @@ try:
 except ImportError:
     pass
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shareloop-production-secret-key-2026')
+# ---------------------------------------------------------------------------
+# Runtime environment
+# ---------------------------------------------------------------------------
+# Vercel sets VERCEL=1 for builds and functions. Static files live in public/static so
+# Vercel's CDN serves them at /static/... ; locally Flask serves the same folder.
+ON_VERCEL = bool(os.environ.get('VERCEL'))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    static_folder=os.path.join(BASE_DIR, 'public', 'static'),
+    static_url_path='/static',
+)
+
+# Behind Vercel/Render proxies: trust X-Forwarded-Proto/Host so url_for(_external=True) builds https links.
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+_secret_key = os.environ.get('SECRET_KEY')
+if not _secret_key:
+    if ON_VERCEL:
+        raise RuntimeError(
+            'SECRET_KEY is not set. Add it in Vercel > Project > Settings > Environment Variables '
+            '(generate one with: python -c "import secrets; print(secrets.token_hex(32))").'
+        )
+    _secret_key = 'shareloop-local-dev-only-secret'
+app.config['SECRET_KEY'] = _secret_key
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = ON_VERCEL or os.environ.get('SESSION_COOKIE_SECURE') == '1'
 PASSWORD_RESET_SALT = 'shareloop-password-reset-salt'
 reset_serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 # ---------------------------------------------------------------------------
 # Dynamic Local File Upload Storage Configuration
 # ---------------------------------------------------------------------------
-UPLOAD_SUBDIR = os.path.join('static', 'uploads')
-UPLOAD_FOLDER = os.path.join(app.root_path, UPLOAD_SUBDIR)
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Production (Vercel): photos go to Vercel Blob (BLOB_READ_WRITE_TOKEN is added automatically
+# when a Blob store is connected to the project). Locally: public/static/uploads/.
+BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN', '')
+USE_BLOB_STORAGE = bool(BLOB_TOKEN)
+UPLOAD_FOLDER = os.path.join(app.static_folder, 'uploads')
+if not USE_BLOB_STORAGE and not ON_VERCEL:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload payload
+# Vercel Functions accept request bodies up to 4.5 MB; the browser compresses photos before sending.
+app.config['MAX_CONTENT_LENGTH'] = (4 if ON_VERCEL else 16) * 1024 * 1024
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 
 # ---------------------------------------------------------------------------
@@ -132,6 +165,26 @@ def save_uploaded_image(file_storage, slot_prefix: str = 'resource') -> str | No
     safe_slot = secure_filename(slot_prefix) or 'photo'
     final_filename = f"{safe_slot}_{timestamp}_{unique_token}.{ext}"
 
+    if USE_BLOB_STORAGE:
+        from vercel.blob import sync as vercel_blob
+        try:
+            uploaded = vercel_blob.put_blob(
+                f"uploads/{final_filename}",
+                file_storage.read(),
+                access='public',
+                content_type=file_storage.mimetype or f"image/{'jpeg' if ext == 'jpg' else ext}",
+                add_random_suffix=True,
+                cache_control_max_age=31536000,
+            )
+        except Exception as err:
+            print(f"[BLOB ERROR] Upload of {final_filename} failed: {err}", flush=True)
+            raise RuntimeError('Photo upload failed. Check that a public Vercel Blob store is connected to this project.') from err
+        return uploaded.url
+
+    if ON_VERCEL:
+        # The function filesystem is read-only and temporary; refuse rather than lose the photo.
+        raise RuntimeError('Photo storage is not configured: connect a Vercel Blob store to this project.')
+
     destination = os.path.join(app.config['UPLOAD_FOLDER'], final_filename)
     file_storage.save(destination)
     return f"/static/uploads/{final_filename}"
@@ -171,7 +224,7 @@ def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str
     print(f"[RECOVERY URL]     {reset_url}", flush=True)
     if not mail_username or not mail_password:
         print("[SMTP NOTICE]     MAIL_USERNAME or MAIL_PASSWORD not configured in environment.", flush=True)
-        print("                  Configure Gmail App Password on Render to enable live email delivery.", flush=True)
+        print("                  Configure Gmail App Password in your hosting environment variables to enable live email delivery.", flush=True)
     else:
         print(f"[SMTP CONNECT]    Connecting to {mail_server}:{mail_port} as {mail_username}...", flush=True)
     print("=" * 64 + "\n", flush=True)
@@ -302,20 +355,34 @@ def parse_dob_input(dob_raw: str) -> date | None:
 # ---------------------------------------------------------------------------
 def normalize_database_url(url: str) -> str:
     if not url:
+        if ON_VERCEL:
+            raise RuntimeError(
+                'DATABASE_URL is not set. Connect a Neon Postgres database to this Vercel project '
+                '(Storage tab) so DATABASE_URL is added, then redeploy.'
+            )
         return 'sqlite:///shareloop.db'
     if url.startswith('postgres://'):
         url = url.replace('postgres://', 'postgresql://', 1)
     return url
 
 
-raw_db_url = normalize_database_url(os.environ.get('DATABASE_URL', ''))
+# Neon's Vercel integration sets DATABASE_URL (pooled); POSTGRES_URL is accepted as a fallback.
+raw_db_url = normalize_database_url(os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL', ''))
 
 app.config['SQLALCHEMY_DATABASE_URI'] = raw_db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-}
+if raw_db_url.startswith('sqlite'):
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {}
+else:
+    # Small pool per function instance; Neon's pooler handles fan-in. pre_ping drops
+    # connections Neon closed while the database was scaled to zero.
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 280,
+        'pool_size': 3,
+        'max_overflow': 2,
+        'connect_args': {'connect_timeout': 10},
+    }
 
 db.init_app(app)
 
@@ -2944,10 +3011,48 @@ def seed_org_broadcasts():
 
 
 
-with app.app_context():
-    db.create_all()
-    seed_database()
-    seed_org_broadcasts()
+def init_database():
+    """Create tables and seed demo data. Safe to run repeatedly."""
+    with app.app_context():
+        db.create_all()
+        seed_database()
+        seed_org_broadcasts()
+
+
+# On Vercel this runs once per deployment in the build step (init_db.py), not on every cold start.
+if not ON_VERCEL or os.environ.get('INIT_DB_ON_START') == '1':
+    init_database()
+
+
+@app.errorhandler(413)
+def payload_too_large(_err):
+    limit_mb = app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024)
+    return jsonify({'error': f'Upload too large. Keep photos under {limit_mb} MB in total.'}), 413
+
+
+@app.errorhandler(500)
+def internal_error(err):
+    db.session.rollback()
+    if request.path.startswith('/api/'):
+        original = getattr(err, 'original_exception', None)
+        message = str(original) if isinstance(original, RuntimeError) else 'Something went wrong on the server. Please try again.'
+        return jsonify({'error': message}), 500
+    return 'Something went wrong on the server. Please try again.', 500
+
+
+@app.route('/healthz')
+def healthz():
+    try:
+        db.session.execute(text('SELECT 1'))
+        database_ok = True
+    except Exception:
+        db.session.rollback()
+        database_ok = False
+    return jsonify({
+        'ok': database_ok,
+        'database': 'postgres' if not raw_db_url.startswith('sqlite') else 'sqlite',
+        'photo_storage': 'vercel-blob' if USE_BLOB_STORAGE else 'local-disk',
+    }), (200 if database_ok else 503)
 
 
 if __name__ == '__main__':

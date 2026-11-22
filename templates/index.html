@@ -4,10 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ShareLoop — Peer-to-Peer Textbook &amp; Resource Exchange</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=25" />
+  <meta name="theme-color" content="#E8EFF5" />
+  <link rel="icon" href="{{ url_for('static', filename='brand/favicon.ico') }}" sizes="any" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='brand/shareloop-app-icon.svg') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='brand/apple-touch-icon.png') }}" />
+  <link rel="preload" href="{{ url_for('static', filename='fonts/plus-jakarta-sans-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=60" />
 </head>
 <body>
   <!-- Toast Notification -->
@@ -42,7 +44,7 @@
         <button type="button" class="btn-outline btn-sm" onclick="closeFeedCreateModal()">&times; Close</button>
       </div>
 
-      <p style="font-size: 0.88rem; color: #4B5563; margin-bottom: 20px; line-height: 1.55; text-align: left;">
+      <p style="font-size: 0.88rem; color: var(--ink-2); margin-bottom: 20px; line-height: 1.55; text-align: left;">
         Can't find an item in Browse Exchange? Post what you're looking for so fellow students on campus can respond with physical proof.
       </p>
 
@@ -102,7 +104,7 @@
       <div style="display: flex; justify-content: space-between; align-items: flex-start; text-align: left; margin-bottom: 14px;">
         <div>
           <h3 id="feed-respond-modal-heading" class="modal-title" style="margin-bottom: 4px;">Respond to Student Request</h3>
-          <p id="feed-respond-target-sub" style="font-size: 0.84rem; color: #64748b;">
+          <p id="feed-respond-target-sub" style="font-size: 0.84rem; color: var(--ink-3);">
             Upload direct proof photos from your local device to verify you physically have this item and open a live pickup chat.
           </p>
         </div>
@@ -147,7 +149,7 @@
         <!-- Dual-Photo Mandatory Upload Grid (Slot 1 & Slot 2 Mandatory, Slot 3 & Slot 4 Optional) -->
         <div class="form-group">
           <label>Upload Direct Device Proof Photos (Slots 1 &amp; 2 Mandatory) *</label>
-          <p style="font-size: 0.78rem; color: #64748b; margin-bottom: 10px;">
+          <p style="font-size: 0.78rem; color: var(--ink-3); margin-bottom: 10px;">
             Both <strong>1. Main Photo (Primary)</strong> and <strong>2. Back / Side View</strong> are mandatory. Slots 3 and 4 are optional.
           </p>
           <div class="photo-slots-grid">
@@ -229,24 +231,24 @@
   <!-- Modal: Pledge Confirmation Pass (Contributor Reference & Drop-off Voucher) -->
   <div id="pledge-pass-modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" onclick="if(event.target === this) closePledgePassModal()">
     <div class="modal-card modal-card-wide" style="max-width: 580px; text-align: left;">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.75rem;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid var(--line); padding-bottom: 0.75rem;">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <div style="width: 36px; height: 36px; border-radius: 50%; background: #DCFCE7; display: flex; align-items: center; justify-content: center; color: #15803D; flex-shrink: 0;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--green-wash); display: flex; align-items: center; justify-content: center; color: var(--green); flex-shrink: 0;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
           </div>
           <div>
-            <h3 class="modal-title" style="margin: 0 0 2px 0; font-size: 1.15rem; color: #0F172A;">Pledge Recorded Successfully</h3>
-            <p style="font-size: 0.82rem; color: #64748B; margin: 0;">Your contribution has been logged as pending physical drop-off.</p>
+            <h3 class="modal-title" style="margin: 0 0 2px 0; font-size: 1.15rem; color: var(--ink);">Pledge Recorded Successfully</h3>
+            <p style="font-size: 0.82rem; color: var(--ink-3); margin: 0;">Your contribution has been logged as pending physical drop-off.</p>
           </div>
         </div>
         <button type="button" class="btn-outline btn-sm" onclick="closePledgePassModal()" style="padding: 0.2rem 0.5rem; line-height: 1;">&times;</button>
       </div>
 
       <!-- Reference Code Highlight Card -->
-      <div style="background: #F0FDF4; border: 1.5px dashed #86EFAC; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.15rem; text-align: center;">
-        <span style="font-size: 0.76rem; text-transform: uppercase; font-weight: 700; color: #166534; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Contribution Reference Code</span>
+      <div style="background: var(--green-wash); border: 1.5px dashed rgba(17, 112, 74, 0.35); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.15rem; text-align: center;">
+        <span style="font-size: 0.76rem; font-weight: 700; color: var(--green); display: block; margin-bottom: 4px;">Contribution Reference Code</span>
         <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 4px;">
-          <span id="pledge-pass-code" style="font-size: 1.75rem; font-weight: 800; color: #14532D; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.08em;">SL-0000</span>
+          <span id="pledge-pass-code" style="font-size: 1.75rem; font-weight: 800; color: var(--green); font-family: var(--font-ui); font-variant-numeric: tabular-nums;">SL-0000</span>
           <button type="button" class="btn-outline btn-sm" onclick="copyPledgePassCode()" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.76rem; background: #FFFFFF;" title="Copy Code">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             <span id="pledge-pass-copy-text">Copy</span>
@@ -255,20 +257,20 @@
       </div>
 
       <!-- Drop Point Location -->
-      <div style="margin-bottom: 1rem; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.75rem 0.95rem;">
-        <span style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 2px;">Physical Drop-Off Point</span>
-        <div id="pledge-pass-droppoint" style="font-size: 0.88rem; font-weight: 600; color: #0F172A;">Main Campus Gate / Relief Hub</div>
+      <div style="margin-bottom: 1rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 0.95rem;">
+        <span style="font-size: 0.75rem; font-weight: 700; color: var(--ink-2); display: block; margin-bottom: 2px;">Physical Drop-Off Point</span>
+        <div id="pledge-pass-droppoint" style="font-size: 0.88rem; font-weight: 600; color: var(--ink);">Main Campus Gate / Relief Hub</div>
       </div>
 
       <!-- Pledged Items Summary -->
       <div style="margin-bottom: 1.15rem;">
-        <span style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 0.4rem;">Pledged Supplies</span>
-        <div id="pledge-pass-items-list" style="max-height: 150px; overflow-y: auto; border: 1px solid #E2E8F0; border-radius: 8px; background: #FFFFFF;">
+        <span style="font-size: 0.75rem; font-weight: 700; color: var(--ink-2); display: block; margin-bottom: 0.4rem;">Pledged Supplies</span>
+        <div id="pledge-pass-items-list" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; background: #FFFFFF;">
           <!-- Injected items list -->
         </div>
       </div>
 
-      <div style="background: #EFF6FF; border: 1px solid #DBEAFE; border-radius: 6px; padding: 0.55rem 0.75rem; font-size: 0.78rem; color: #1E40AF; margin-bottom: 1.25rem;">
+      <div style="background: var(--pen-wash); border: 1px solid var(--pen-wash); border-radius: 6px; padding: 0.55rem 0.75rem; font-size: 0.78rem; color: var(--pen-deep); margin-bottom: 1.25rem;">
         <strong>Next Step:</strong> Bring your items to the drop point above and quote your reference code. The organization will verify the physical count and mark them secured in the drive ledger.
       </div>
 
@@ -286,23 +288,23 @@
   <!-- Modal: Owner Physical Verification Prompt (Verify Received Supplies) -->
   <div id="verify-contribution-modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" onclick="if(event.target === this) closeVerifyContributionModal()">
     <div class="modal-card modal-card-wide" style="max-width: 620px; text-align: left;">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.75rem;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid var(--line); padding-bottom: 0.75rem;">
         <div>
-          <h3 class="modal-title" style="margin: 0 0 2px 0; font-size: 1.15rem; color: #0F172A;">Verify Physical Supplies Received</h3>
-          <p style="font-size: 0.82rem; color: #64748B; margin: 0;">Confirm the actual physical count received from this contributor.</p>
+          <h3 class="modal-title" style="margin: 0 0 2px 0; font-size: 1.15rem; color: var(--ink);">Verify Physical Supplies Received</h3>
+          <p style="font-size: 0.82rem; color: var(--ink-3); margin: 0;">Confirm the actual physical count received from this contributor.</p>
         </div>
         <button type="button" class="btn-outline btn-sm" onclick="closeVerifyContributionModal()" style="padding: 0.2rem 0.5rem; line-height: 1;">&times;</button>
       </div>
 
-      <div id="verify-modal-meta" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.75rem 0.95rem; margin-bottom: 1rem; font-size: 0.84rem;">
+      <div id="verify-modal-meta" style="background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 0.95rem; margin-bottom: 1rem; font-size: 0.84rem;">
         <!-- Injected contributor & reference meta -->
       </div>
 
       <div style="margin-bottom: 1rem;">
         <label class="form-label" style="font-size: 0.82rem; font-weight: 700; margin-bottom: 0.4rem;">Actual Quantities Received</label>
-        <div class="table-responsive" style="border: 1px solid #E2E8F0; border-radius: 8px; max-height: 220px; overflow-y: auto;">
+        <div class="table-responsive" style="border: 1px solid var(--line); border-radius: 8px; max-height: 220px; overflow-y: auto;">
           <table class="table-compact" style="width: 100%; font-size: 0.84rem; border-collapse: collapse;">
-            <thead style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0; text-align: left;">
+            <thead style="background: var(--surface-2); border-bottom: 1px solid var(--line); text-align: left;">
               <tr>
                 <th style="padding: 0.5rem 0.65rem;">Item Description</th>
                 <th style="padding: 0.5rem 0.65rem; width: 22%; text-align: right;">Pledged</th>
@@ -346,7 +348,7 @@
 
       <button type="button" class="brand-btn" onclick="navigateTo('{% if current_user.role == 'Admin' %}admin-overview{% else %}browse{% endif %}')">
         <div class="brand-logo-box">
-          <img src="{{ url_for('static', filename='logo.png') }}?v=2" alt="ShareLoop Logo" class="brand-logo-img" />
+          <img src="{{ url_for('static', filename='brand/shareloop-mark.svg') }}" alt="ShareLoop" class="brand-logo-img" />
         </div>
         <span class="brand-title">ShareLoop</span>
       </button>
@@ -390,8 +392,8 @@
     <aside class="sidebar" id="app-sidebar">
       <div class="sidebar-mobile-header">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <div class="brand-logo-box" style="width: 44px; height: 28px;">
-            <img src="{{ url_for('static', filename='logo.png') }}?v=2" alt="ShareLoop" class="brand-logo-img" />
+          <div class="brand-logo-box" style="width: 30px; height: 30px;">
+            <img src="{{ url_for('static', filename='brand/shareloop-mark.svg') }}" alt="ShareLoop" class="brand-logo-img" />
           </div>
           <span class="brand-title" style="font-size: 1.15rem;">ShareLoop</span>
         </div>
@@ -403,26 +405,32 @@
         <!-- DEDICATED ADMIN SIDEBAR PANELS (PLAIN TEXT, NO EMOJIS)           -->
         <!-- ================================================================ -->
         <button type="button" id="nav-admin-overview" class="nav-item active" onclick="navigateTo('admin-overview')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
           <span>Overview Metrics</span>
         </button>
 
         <button type="button" id="nav-admin-resources" class="nav-item" onclick="handleSidebarNavWithDrawer('admin-resources', 'admin')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
           <span>Resource Feed</span>
         </button>
 
         <button type="button" id="nav-admin-feed" class="nav-item" onclick="navigateTo('feed')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           <span>Request Feed</span>
         </button>
 
         <button type="button" id="nav-admin-transactions" class="nav-item" onclick="navigateTo('admin-transactions')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
           <span>Transactions</span>
         </button>
 
         <button type="button" id="nav-admin-active-accounts" class="nav-item" onclick="navigateTo('admin-active-accounts')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
           <span>Active Accounts</span>
         </button>
 
         <button type="button" id="nav-admin-pending-accounts" class="nav-item" onclick="navigateTo('admin-pending-accounts')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
           <span>Account Approvals</span>
           <span id="sidebar-pending-badge" class="badge badge-amber hidden" style="margin-left: auto; font-size: 0.7rem; padding: 0.1rem 0.45rem;">0</span>
         </button>
@@ -496,7 +504,7 @@
         {% endif %}
 
         <!-- Separated Profile & Security Sidebar Pages -->
-        <div class="sidebar-section-divider">ACCOUNT &amp; SETTINGS</div>
+        <div class="sidebar-section-divider">Account</div>
 
         <button type="button" id="nav-profile" class="nav-item" onclick="navigateTo('profile')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -548,7 +556,6 @@
           <div class="card-form admin-chart-card">
             <div class="admin-chart-header">
               <div>
-                <span class="section-eyebrow">TIMELINE ANALYTICS</span>
                 <h3>Exchanges Over Time</h3>
                 <p>Completed handovers tracked per week.</p>
               </div>
@@ -566,7 +573,6 @@
           <div class="card-form admin-chart-card">
             <div class="admin-chart-header">
               <div>
-                <span class="section-eyebrow">TRANSACTION RATIO</span>
                 <h3>Exchange Types Breakdown</h3>
                 <p>Distribution of active Resource Listings by exchange type.</p>
               </div>
@@ -579,7 +585,6 @@
         <div class="card-form admin-chart-card" style="max-width: 100%; margin-top: 1.25rem;">
           <div class="admin-chart-header">
             <div>
-              <span class="section-eyebrow">TAXONOMY DISTRIBUTION</span>
               <h3>Top Categories Shared</h3>
               <p>Volume distribution of active Resource Listings across structured categories.</p>
             </div>
@@ -629,7 +634,7 @@
             </div>
 
             <div class="filter-section">
-              <h4>EXCHANGE TYPE</h4>
+              <h4>Exchange type</h4>
               <label class="checkbox-label">
                 <input type="checkbox" class="admin-filter-exchange" value="Lend" onchange="loadAdminResources()" />
                 <span>Lend (Borrow)</span>
@@ -645,7 +650,7 @@
             </div>
 
             <div class="filter-section">
-              <h4>CATEGORY</h4>
+              <h4>Category</h4>
               <div class="category-search-box">
                 <input
                   type="search"
@@ -723,7 +728,7 @@
             </div>
 
             <div class="filter-section">
-              <h4>CONDITION</h4>
+              <h4>Condition</h4>
               <label class="checkbox-label">
                 <input type="checkbox" class="admin-filter-condition" value="New / Like New" onchange="loadAdminResources()" />
                 <span>New / Like New</span>
@@ -890,7 +895,7 @@
             </div>
 
             <div class="filter-section">
-              <h4>EXCHANGE TYPE</h4>
+              <h4>Exchange type</h4>
               <label id="filter-wrap-lend" class="checkbox-label {% if current_user.role == 'Organization' %}hidden{% endif %}">
                 <input type="checkbox" class="filter-exchange" value="Lend" onchange="loadBrowseItems()" />
                 <span>Lend (Borrow)</span>
@@ -914,7 +919,7 @@
 
             <!-- Structured Multi-Level Searchable & Scrollable Category Filter -->
             <div class="filter-section">
-              <h4>CATEGORY</h4>
+              <h4>Category</h4>
               <div class="category-search-box">
                 <input
                   type="search"
@@ -992,7 +997,7 @@
             </div>
 
             <div class="filter-section">
-              <h4>CONDITION</h4>
+              <h4>Condition</h4>
               <label class="checkbox-label">
                 <input type="checkbox" class="filter-condition" value="New / Like New" onchange="loadBrowseItems()" />
                 <span>New / Like New</span>
@@ -1122,7 +1127,7 @@
 
           <div class="form-group">
             <label>Upload Resource Photos (Slots 1 &amp; 2 Mandatory) *</label>
-            <p id="photo-upload-helper-text" style="font-size: 0.8rem; color: #64748b; margin-bottom: 10px;">
+            <p id="photo-upload-helper-text" style="font-size: 0.8rem; color: var(--ink-3); margin-bottom: 10px;">
               Both <strong>1. Main Photo (Primary)</strong> and <strong>2. Back / Side View</strong> are mandatory. Slots 3 and 4 are optional.
             </p>
             <div class="photo-slots-grid">
@@ -1283,17 +1288,17 @@
             </div>
             <div class="kpi-card">
               <span class="kpi-label">Total Items Secured</span>
-              <div id="org-kpi-secured-count" class="kpi-value" style="color: #059669;">0</div>
+              <div id="org-kpi-secured-count" class="kpi-value" style="color: var(--green);">0</div>
               <span class="kpi-subtext">Pledged &amp; donated by students</span>
             </div>
             <div class="kpi-card">
               <span class="kpi-label">Items Still Needed</span>
-              <div id="org-kpi-needed-count" class="kpi-value" style="color: #DC2626;">0</div>
+              <div id="org-kpi-needed-count" class="kpi-value" style="color: var(--danger);">0</div>
               <span class="kpi-subtext">Across active relief drives</span>
             </div>
             <div class="kpi-card">
               <span class="kpi-label">Overall Fulfillment</span>
-              <div id="org-kpi-fulfillment-rate" class="kpi-value" style="color: #2563EB;">0%</div>
+              <div id="org-kpi-fulfillment-rate" class="kpi-value" style="color: var(--pen);">0%</div>
               <span class="kpi-subtext">Average progress to goal</span>
             </div>
           </div>
@@ -1319,13 +1324,13 @@
 
           <!-- Section 1: My Organization Broadcasts -->
           <div id="section-my-org-broadcasts" class="org-section-wrapper" style="margin-bottom: 2.25rem;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.65rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid var(--line); padding-bottom: 0.65rem;">
               <div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <h2 style="font-size: 1.15rem; font-weight: 700; color: #0F172A; margin: 0;">My Organization Broadcasts</h2>
-                  <span id="my-broadcasts-count-tag" style="background: #EEF2FF; color: #4338CA; font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600;">0 active</span>
+                  <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--ink); margin: 0;">My Organization Broadcasts</h2>
+                  <span id="my-broadcasts-count-tag" style="background: var(--pen-wash); color: var(--pen-deep); font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600;">0 active</span>
                 </div>
-                <p style="font-size: 0.82rem; color: #64748B; margin: 4px 0 0 0;">Relief needs broadcasts created and managed by your organization. You have full management controls to record incoming supplies, toggle drive status, or delete.</p>
+                <p style="font-size: 0.82rem; color: var(--ink-3); margin: 4px 0 0 0;">Relief needs broadcasts created and managed by your organization. You have full management controls to record incoming supplies, toggle drive status, or delete.</p>
               </div>
             </div>
             <div id="my-org-broadcasts-container" class="stack-list"></div>
@@ -1333,13 +1338,13 @@
 
           <!-- Section 2: Community & Partner Broadcasts -->
           <div id="section-community-org-broadcasts" class="org-section-wrapper">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.65rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid var(--line); padding-bottom: 0.65rem;">
               <div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <h2 style="font-size: 1.15rem; font-weight: 700; color: #0F172A; margin: 0;">Community &amp; Partner Broadcasts</h2>
-                  <span id="community-broadcasts-count-tag" style="background: #F1F5F9; color: #475569; font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600;">0 partner drives</span>
+                  <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--ink); margin: 0;">Community &amp; Partner Broadcasts</h2>
+                  <span id="community-broadcasts-count-tag" style="background: var(--line); color: var(--ink-2); font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600;">0 partner drives</span>
                 </div>
-                <p style="font-size: 0.82rem; color: #64748B; margin: 4px 0 0 0;">Active relief drives published by other campus organizations. Support their initiatives by pledging extra books, materials, and supplies.</p>
+                <p style="font-size: 0.82rem; color: var(--ink-3); margin: 4px 0 0 0;">Active relief drives published by other campus organizations. Support their initiatives by pledging extra books, materials, and supplies.</p>
               </div>
             </div>
             <div id="community-org-broadcasts-container" class="stack-list"></div>
@@ -1352,7 +1357,7 @@
       <!-- ================================================================ -->
       <section id="view-org-create-broadcast" class="view-section hidden">
         <div class="org-create-workspace">
-          <button type="button" class="back-link" onclick="navigateTo('org-broadcasts')" style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 600; color: #475569; background: none; border: none; cursor: pointer; padding: 0;">
+          <button type="button" class="back-link" onclick="navigateTo('org-broadcasts')" style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 600; color: var(--ink-2); background: none; border: none; cursor: pointer; padding: 0;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
@@ -1362,8 +1367,8 @@
 
           <div class="page-header" style="margin-bottom: 1.75rem;">
             <div>
-              <h1 id="org-broadcast-page-title" style="font-size: 1.55rem; font-weight: 800; color: #0F172A; margin: 0 0 4px 0;">Create Needs Broadcast</h1>
-              <p id="org-broadcast-page-subtitle" style="font-size: 0.88rem; color: #64748B; margin: 0;">Broadcast emergency community relief needs or ongoing project drives directly to university students on campus.</p>
+              <h1 id="org-broadcast-page-title" style="font-size: 1.55rem; font-weight: 800; color: var(--ink); margin: 0 0 4px 0;">Create Needs Broadcast</h1>
+              <p id="org-broadcast-page-subtitle" style="font-size: 0.88rem; color: var(--ink-3); margin: 0;">Broadcast emergency community relief needs or ongoing project drives directly to university students on campus.</p>
             </div>
           </div>
 
@@ -1372,10 +1377,10 @@
             <!-- Card 1: Urgency & Mode Classification (Compact 4-column row) -->
             <div class="create-broadcast-card">
               <div style="margin-bottom: 0.85rem;">
-                <label style="font-weight: 700; font-size: 0.95rem; color: #0F172A; margin: 0 0 2px 0; display: block;">
-                  1. Urgency &amp; Mode Classification <span style="color: #DC2626;">*</span>
+                <label style="font-weight: 700; font-size: 0.95rem; color: var(--ink); margin: 0 0 2px 0; display: block;">
+                  1. Urgency &amp; Mode Classification <span style="color: var(--danger);">*</span>
                 </label>
-                <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Select the urgency category that best matches your relief drive.</p>
+                <p style="font-size: 0.8rem; color: var(--ink-3); margin: 0;">Select the urgency category that best matches your relief drive.</p>
               </div>
 
               <div class="urgency-mode-selector-grid">
@@ -1427,16 +1432,16 @@
 
             <!-- Card 2: Drive Overview & Disaster Logistics -->
             <div class="create-broadcast-card">
-              <div style="margin-bottom: 1.15rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.65rem;">
-                <h3 style="font-weight: 700; font-size: 0.95rem; color: #0F172A; margin: 0 0 2px 0;">
+              <div style="margin-bottom: 1.15rem; border-bottom: 1px solid var(--line); padding-bottom: 0.65rem;">
+                <h3 style="font-weight: 700; font-size: 0.95rem; color: var(--ink); margin: 0 0 2px 0;">
                   2. Drive Details &amp; Disaster Logistics
                 </h3>
-                <p style="font-size: 0.8rem; color: #64748B; margin: 0;">Specify title, relief site, transportation access condition, and the nearest safe collection hub.</p>
+                <p style="font-size: 0.8rem; color: var(--ink-3); margin: 0;">Specify title, relief site, transportation access condition, and the nearest safe collection hub.</p>
               </div>
 
               <div class="form-group" style="margin-bottom: 1.15rem;">
-                <label for="org-broadcast-title" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
-                  Broadcast Title <span style="color: #DC2626;">*</span>
+                <label for="org-broadcast-title" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: var(--ink);">
+                  Broadcast Title <span style="color: var(--danger);">*</span>
                 </label>
                 <input
                   type="text"
@@ -1449,8 +1454,8 @@
 
               <div class="org-logistics-form-row" style="margin-bottom: 1.15rem;">
                 <div class="form-group">
-                  <label for="org-beneficiary-count" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
-                    Target Beneficiary Count <span style="color: #DC2626;">*</span>
+                  <label for="org-beneficiary-count" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: var(--ink);">
+                    Target Beneficiary Count <span style="color: var(--danger);">*</span>
                   </label>
                   <input
                     type="number"
@@ -1467,8 +1472,8 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="org-broadcast-road" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
-                    Road / Access Condition Tag <span style="color: #DC2626;">*</span>
+                  <label for="org-broadcast-road" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: var(--ink);">
+                    Road / Access Condition Tag <span style="color: var(--danger);">*</span>
                   </label>
                   <select id="org-broadcast-road" class="form-control" required>
                     <option value="Motorable">Motorable (All Vehicles)</option>
@@ -1479,8 +1484,8 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="org-broadcast-location" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
-                    Location / Relief Camp <span style="color: #DC2626;">*</span>
+                  <label for="org-broadcast-location" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: var(--ink);">
+                    Location / Relief Camp <span style="color: var(--danger);">*</span>
                   </label>
                   <input
                     type="text"
@@ -1494,8 +1499,8 @@
               </div>
 
               <div class="form-group" style="margin-bottom: 1.15rem;">
-                <label for="org-broadcast-drop-point" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
-                  Nearest Safe Drop-Point <span style="color: #DC2626;">*</span>
+                <label for="org-broadcast-drop-point" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: var(--ink);">
+                  Nearest Safe Drop-Point <span style="color: var(--danger);">*</span>
                 </label>
                 <input
                   type="text"
@@ -1508,7 +1513,7 @@
               </div>
 
               <div class="form-group" style="margin-bottom: 0;">
-                <label for="org-broadcast-desc" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: #1E293B;">
+                <label for="org-broadcast-desc" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block; color: var(--ink);">
                   Situation Overview &amp; Instructions
                 </label>
                 <textarea
@@ -1522,12 +1527,12 @@
 
             <!-- Card 3: Needed Supplies Breakdown with Suggestions & Custom Option -->
             <div class="create-broadcast-card">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.85rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.85rem; border-bottom: 1px solid var(--line); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.75rem;">
                 <div>
-                  <h3 style="font-weight: 700; font-size: 0.98rem; color: #0F172A; margin: 0 0 3px 0;">
-                    3. Needed Supplies &amp; Items Breakdown <span style="color: #DC2626;">*</span>
+                  <h3 style="font-weight: 700; font-size: 0.98rem; color: var(--ink); margin: 0 0 3px 0;">
+                    3. Needed Supplies &amp; Items Breakdown <span style="color: var(--danger);">*</span>
                   </h3>
-                  <p style="font-size: 0.82rem; color: #64748B; margin: 0;">We've pre-filled recommended supplies below. You can customize quantities, write what you need, or add new items.</p>
+                  <p style="font-size: 0.82rem; color: var(--ink-3); margin: 0;">We've pre-filled recommended supplies below. You can customize quantities, write what you need, or add new items.</p>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                   <button
@@ -1542,7 +1547,7 @@
                     type="button"
                     class="btn-ghost btn-sm"
                     onclick="resetBroadcastItemsToSuggestions()"
-                    style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: #2563EB;"
+                    style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--pen);"
                     title="Reload recommended template items"
                   >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
@@ -1552,23 +1557,23 @@
               </div>
 
               <!-- Quick Suggestion Chips Box -->
-              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.75rem 0.95rem; margin-bottom: 1.15rem;">
+              <div style="background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 0.95rem; margin-bottom: 1.15rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
-                  <span style="font-size: 0.76rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.04em;">Suggested Items for This Mode (Click to Quick-Add):</span>
+                  <span style="font-size: 0.76rem; font-weight: 700; color: var(--ink-2);">Suggested Items for This Mode (Click to Quick-Add):</span>
                 </div>
                 <div id="broadcast-suggestions-pills" style="display: flex; flex-wrap: wrap; gap: 0.45rem;">
                   <!-- Injected suggested chips for selected mode -->
                 </div>
               </div>
 
-              <div class="table-responsive" style="border: 1px solid #E2E8F0; border-radius: 8px; overflow-x: auto;">
+              <div class="table-responsive" style="border: 1px solid var(--line); border-radius: 8px; overflow-x: auto;">
                 <table class="table-compact broadcast-builder-table" style="width: 100%; min-width: 660px; border-collapse: collapse; font-size: 0.86rem;">
-                  <thead style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0; text-align: left;">
+                  <thead style="background: var(--surface-2); border-bottom: 1px solid var(--line); text-align: left;">
                     <tr>
-                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: #475569; width: 25%;">Age Bracket / Category</th>
-                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: #475569; width: 45%;">Item Description (Customizable)</th>
-                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: #475569; width: 14%; text-align: right;">Qty Needed</th>
-                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: #475569; width: 11%;">Unit</th>
+                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: var(--ink-2); width: 25%;">Age Bracket / Category</th>
+                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: var(--ink-2); width: 45%;">Item Description (Customizable)</th>
+                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: var(--ink-2); width: 14%; text-align: right;">Qty Needed</th>
+                      <th style="padding: 0.65rem 0.75rem; font-weight: 600; color: var(--ink-2); width: 11%;">Unit</th>
                       <th style="padding: 0.65rem 0.5rem; width: 5%; text-align: center;"></th>
                     </tr>
                   </thead>
@@ -1601,7 +1606,7 @@
 
             <!-- Sticky / Clear Action Footer -->
             <div class="create-broadcast-actions-bar">
-              <span style="font-size: 0.84rem; color: #64748B;">Ready to publish? Your broadcast will be immediately visible to all campus students.</span>
+              <span style="font-size: 0.84rem; color: var(--ink-3);">Ready to publish? Your broadcast will be immediately visible to all campus students.</span>
               <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <button type="button" class="btn-outline" onclick="navigateTo('org-broadcasts')">
                   Cancel
@@ -1622,7 +1627,7 @@
       <!-- ================================================================ -->
       <section id="view-org-record-broadcast" class="view-section hidden">
         <div class="org-create-workspace" style="max-width: 960px; margin: 0 auto; text-align: left;">
-          <button type="button" class="back-link" onclick="handleBackFromRecordPage()" style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 600; color: #475569; background: none; border: none; cursor: pointer; padding: 0;">
+          <button type="button" class="back-link" onclick="handleBackFromRecordPage()" style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 600; color: var(--ink-2); background: none; border: none; cursor: pointer; padding: 0;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
@@ -1632,8 +1637,8 @@
 
           <div class="page-header" style="margin-bottom: 1.5rem; text-align: left;">
             <div>
-              <h1 id="record-page-title" style="font-size: 1.55rem; font-weight: 800; color: #0F172A; margin: 0 0 4px 0; text-align: left;">Record Received Supplies</h1>
-              <p id="record-page-subtitle" style="font-size: 0.88rem; color: #64748B; margin: 0; text-align: left;">Enter quantities for any supplies physically received for this drive and save once.</p>
+              <h1 id="record-page-title" style="font-size: 1.55rem; font-weight: 800; color: var(--ink); margin: 0 0 4px 0; text-align: left;">Record Received Supplies</h1>
+              <p id="record-page-subtitle" style="font-size: 0.88rem; color: var(--ink-3); margin: 0; text-align: left;">Enter quantities for any supplies physically received for this drive and save once.</p>
             </div>
           </div>
 
@@ -1644,10 +1649,10 @@
 
           <!-- Multi-Item Input List (Side-by-Side Table / Card Rows) -->
           <div class="create-broadcast-card" style="margin-bottom: 1.5rem; text-align: left;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--line); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
               <div>
-                <h3 style="font-weight: 700; font-size: 1rem; color: #0F172A; margin: 0 0 2px 0;">Drive Supply Items &amp; Quantities</h3>
-                <p style="font-size: 0.82rem; color: #64748B; margin: 0;">Enter quantities for the items you are providing or logging. Fulfilled items are locked.</p>
+                <h3 style="font-weight: 700; font-size: 1rem; color: var(--ink); margin: 0 0 2px 0;">Drive Supply Items &amp; Quantities</h3>
+                <p style="font-size: 0.82rem; color: var(--ink-3); margin: 0;">Enter quantities for the items you are providing or logging. Fulfilled items are locked.</p>
               </div>
             </div>
 
@@ -1658,9 +1663,9 @@
 
           <!-- Optional Donor & Note Card (Shown for Owner recording offline/walk-in, or optional note for contributor) -->
           <div id="record-page-donor-meta" class="create-broadcast-card" style="margin-bottom: 1.5rem; text-align: left;">
-            <div style="margin-bottom: 0.85rem; border-bottom: 1px solid #F1F5F9; padding-bottom: 0.5rem;">
-              <h3 id="record-meta-heading" style="font-weight: 700; font-size: 0.98rem; color: #0F172A; margin: 0 0 2px 0;">Donor &amp; Delivery Details</h3>
-              <p id="record-meta-sub" style="font-size: 0.82rem; color: #64748B; margin: 0;">Specify who provided these supplies or add delivery memo for the ledger.</p>
+            <div style="margin-bottom: 0.85rem; border-bottom: 1px solid var(--line); padding-bottom: 0.5rem;">
+              <h3 id="record-meta-heading" style="font-weight: 700; font-size: 0.98rem; color: var(--ink); margin: 0 0 2px 0;">Donor &amp; Delivery Details</h3>
+              <p id="record-meta-sub" style="font-size: 0.82rem; color: var(--ink-3); margin: 0;">Specify who provided these supplies or add delivery memo for the ledger.</p>
             </div>
             <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
               <div id="record-donor-name-container">
@@ -1676,11 +1681,11 @@
 
           <!-- Single Batch Confirmation Bar -->
           <div class="create-broadcast-actions-bar" style="margin-top: 1.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; color: #334155;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; color: var(--ink);">
               <span>Total being added:</span>
-              <strong id="batch-record-total-qty" style="color: #0F172A; font-weight: 800; font-size: 1.05rem;">0</strong>
+              <strong id="batch-record-total-qty" style="color: var(--ink); font-weight: 800; font-size: 1.05rem;">0</strong>
               <span>items across</span>
-              <strong id="batch-record-categories-count" style="color: #0F172A; font-weight: 800; font-size: 1.05rem;">0</strong>
+              <strong id="batch-record-categories-count" style="color: var(--ink); font-weight: 800; font-size: 1.05rem;">0</strong>
               <span>categories</span>
             </div>
 
@@ -1709,7 +1714,7 @@
       <section id="view-org-broadcast-records" class="view-section hidden">
         <div class="org-create-workspace" style="max-width: 1040px; margin: 0 auto; text-align: left;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
-            <button type="button" class="back-link" onclick="handleBackFromRecordsLedger()" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; font-weight: 600; color: #475569; background: none; border: none; cursor: pointer; padding: 0;">
+            <button type="button" class="back-link" onclick="handleBackFromRecordsLedger()" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; font-weight: 600; color: var(--ink-2); background: none; border: none; cursor: pointer; padding: 0;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
@@ -1724,8 +1729,8 @@
 
           <div class="page-header" style="margin-bottom: 1.25rem; text-align: left;">
             <div>
-              <h1 id="records-ledger-title" style="font-size: 1.55rem; font-weight: 800; color: #0F172A; margin: 0 0 4px 0; text-align: left;">Incoming Pledges &amp; Contribution Records</h1>
-              <p style="font-size: 0.88rem; color: #64748B; margin: 0; text-align: left;">Audit trail of all community pledges, physical verifications, and offline receipts for this broadcast.</p>
+              <h1 id="records-ledger-title" style="font-size: 1.55rem; font-weight: 800; color: var(--ink); margin: 0 0 4px 0; text-align: left;">Incoming Pledges &amp; Contribution Records</h1>
+              <p style="font-size: 0.88rem; color: var(--ink-3); margin: 0; text-align: left;">Audit trail of all community pledges, physical verifications, and offline receipts for this broadcast.</p>
             </div>
           </div>
 
@@ -1735,26 +1740,26 @@
           </div>
 
           <!-- Ledger Tabs -->
-          <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 2px solid #E2E8F0; padding-bottom: 0px;">
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 2px solid var(--line); padding-bottom: 0px;">
             <button
               type="button"
               id="tab-btn-pending-pledges"
               class="records-tab-btn active"
               onclick="switchRecordsTab('pending')"
-              style="padding: 0.65rem 1.15rem; font-size: 0.88rem; font-weight: 700; border: none; background: none; cursor: pointer; border-bottom: 2px solid #2563EB; color: #2563EB; margin-bottom: -2px; display: inline-flex; align-items: center; gap: 6px;"
+              style="padding: 0.65rem 1.15rem; font-size: 0.88rem; font-weight: 700; border: none; background: none; cursor: pointer; border-bottom: 2px solid var(--pen); color: var(--pen); margin-bottom: -2px; display: inline-flex; align-items: center; gap: 6px;"
             >
               <span>Pending Drop-Offs</span>
-              <span id="badge-pending-count" style="background: #FEF3C7; color: #92400E; font-size: 0.74rem; font-weight: 800; padding: 2px 7px; border-radius: 9999px;">0</span>
+              <span id="badge-pending-count" style="background: var(--amber-wash); color: var(--amber); font-size: 0.74rem; font-weight: 800; padding: 2px 7px; border-radius: 9999px;">0</span>
             </button>
             <button
               type="button"
               id="tab-btn-verified-ledger"
               class="records-tab-btn"
               onclick="switchRecordsTab('verified')"
-              style="padding: 0.65rem 1.15rem; font-size: 0.88rem; font-weight: 600; border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; color: #64748B; margin-bottom: -2px; display: inline-flex; align-items: center; gap: 6px;"
+              style="padding: 0.65rem 1.15rem; font-size: 0.88rem; font-weight: 600; border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; color: var(--ink-3); margin-bottom: -2px; display: inline-flex; align-items: center; gap: 6px;"
             >
               <span>Verified History Ledger</span>
-              <span id="badge-verified-count" style="background: #DCFCE7; color: #166534; font-size: 0.74rem; font-weight: 800; padding: 2px 7px; border-radius: 9999px;">0</span>
+              <span id="badge-verified-count" style="background: var(--green-wash); color: var(--green); font-size: 0.74rem; font-weight: 800; padding: 2px 7px; border-radius: 9999px;">0</span>
             </button>
           </div>
 
@@ -1767,9 +1772,9 @@
 
           <!-- Tab Pane: Verified History Ledger -->
           <div id="pane-verified-ledger" class="hidden">
-            <div class="table-responsive" style="border: 1px solid #E2E8F0; border-radius: 10px; background: #FFFFFF; overflow-x: auto;">
+            <div class="table-responsive" style="border: 1px solid var(--line); border-radius: 10px; background: #FFFFFF; overflow-x: auto;">
               <table style="width: 100%; min-width: 800px; border-collapse: collapse; font-size: 0.84rem; text-align: left;">
-                <thead style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0; color: #475569; font-weight: 700;">
+                <thead style="background: var(--surface-2); border-bottom: 1px solid var(--line); color: var(--ink-2); font-weight: 700;">
                   <tr>
                     <th style="padding: 0.75rem 0.85rem; width: 14%;">Ref Code</th>
                     <th style="padding: 0.75rem 0.85rem; width: 16%;">Verified Date</th>
@@ -1794,8 +1799,8 @@
         <div class="org-create-workspace" style="max-width: 960px; margin: 0 auto; text-align: left;">
           <div class="page-header" style="margin-bottom: 1.5rem; text-align: left;">
             <div>
-              <h1 style="font-size: 1.55rem; font-weight: 800; color: #0F172A; margin: 0 0 4px 0; text-align: left;">My Relief Contributions &amp; Pledges</h1>
-              <p style="font-size: 0.88rem; color: #64748B; margin: 0; text-align: left;">Track physical drop-off locations, verification status, and reference codes for all supplies you've pledged.</p>
+              <h1 style="font-size: 1.55rem; font-weight: 800; color: var(--ink); margin: 0 0 4px 0; text-align: left;">My Relief Contributions &amp; Pledges</h1>
+              <p style="font-size: 0.88rem; color: var(--ink-3); margin: 0; text-align: left;">Track physical drop-off locations, verification status, and reference codes for all supplies you've pledged.</p>
             </div>
           </div>
 
@@ -1838,8 +1843,8 @@
           <div class="feed-stream-column">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
               <div>
-                <h2 style="font-size: 1.1rem; font-weight: 700; color: #111827;">Active Campus Requests</h2>
-                <p style="font-size: 0.82rem; color: #64748b;">
+                <h2 style="font-size: 1.1rem; font-weight: 700; color: var(--ink);">Active Campus Requests</h2>
+                <p style="font-size: 0.82rem; color: var(--ink-3);">
                   {% if current_user.role == 'Admin' %}Review current requests and delete any inappropriate or completed posts.{% else %}Click "I Have This" to upload device proof photos and start a pickup chat.{% endif %}
                 </p>
               </div>
@@ -1911,7 +1916,7 @@
                 placeholder="(+977) 9848262163"
                 oninput="enforceDashboardNepaliPhone(this)"
               />
-              <small style="display: block; margin-top: 4px; font-size: 0.75rem; color: #64748b;">
+              <small style="display: block; margin-top: 4px; font-size: 0.75rem; color: var(--ink-3);">
                 Optional (+977) prefix followed by 10 digits (e.g. (+977) 9848262163).
               </small>
             </div>
@@ -1987,6 +1992,42 @@
   <script>
     window.SHARELOOP_INITIAL_USER = {{ current_user | tojson | safe }};
   </script>
-  <script src="{{ url_for('static', filename='js/app.js') }}?v=25"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}?v=61"></script>
+  <script>
+    // Dashboard numbers count up when they appear (skipped for reduced motion)
+    (function () {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('MutationObserver' in window)) return;
+      function countUp(el) {
+        if (el.dataset.counting) return;
+        const text = el.textContent.trim();
+        const m = text.match(/^(\d[\d,]*)(\D*)$/);
+        if (!m) return;
+        const target = parseInt(m[1].replace(/,/g, ''), 10);
+        const suffix = m[2];
+        if (!target) return;
+        el.dataset.counting = '1';
+        const start = performance.now(), dur = 900;
+        (function frame(now) {
+          const t = Math.min(1, (now - start) / dur);
+          const eased = 1 - Math.pow(1 - t, 3);
+          el.textContent = Math.round(target * eased).toLocaleString() + suffix;
+          if (t < 1) requestAnimationFrame(frame);
+          else { el.textContent = text; setTimeout(() => delete el.dataset.counting, 50); }
+        })(start);
+      }
+      new MutationObserver((mutations) => {
+        mutations.forEach((mu) => {
+          const t = mu.target.nodeType === 1 ? mu.target : mu.target.parentElement;
+          if (t && t.classList && t.classList.contains('kpi-value')) countUp(t);
+          mu.addedNodes.forEach((n) => {
+            if (n.nodeType !== 1) return;
+            if (n.classList.contains('kpi-value')) countUp(n);
+            n.querySelectorAll && n.querySelectorAll('.kpi-value').forEach(countUp);
+          });
+        });
+      }).observe(document.body, { childList: true, subtree: true, characterData: true });
+    })();
+  </script>
+
 </body>
 </html>

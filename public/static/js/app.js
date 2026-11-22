@@ -547,9 +547,9 @@ function renderBrowseItemCard(item) {
       </div>
       <div class="item-card-footer">
         <span class="status-pill ${item.is_available ? 'available' : 'unavailable'}">
-          ${item.is_available ? '● Available' : '○ Unavailable'}
+          ${item.is_available ? 'Available' : 'Unavailable'}
         </span>
-        <span class="link-btn">View Details &rarr;</span>
+        <span class="link-btn">View details</span>
       </div>
     </article>
   `;
@@ -600,10 +600,10 @@ function switchDetailGalleryPhoto(photoUrl, thumbBtn) {
     mainImg.src = photoUrl;
   }
   document.querySelectorAll('.detail-gallery-thumb').forEach(btn => {
-    btn.style.borderColor = '#E5E7EB';
+    btn.style.borderColor = 'var(--line)';
   });
   if (thumbBtn) {
-    thumbBtn.style.borderColor = '#1B3B2B';
+    thumbBtn.style.borderColor = 'var(--pen)';
   }
 }
 
@@ -679,10 +679,10 @@ function renderItemDetails(item) {
                   type="button"
                   class="detail-gallery-thumb"
                   onclick="switchDetailGalleryPhoto('${escapeAttr(slot.url)}', this)"
-                  style="border: 2px solid ${idx === 0 ? '#1B3B2B' : '#E5E7EB'}; border-radius: 8px; padding: 4px; background: #fff; cursor: pointer; text-align: center;"
+                  style="border: 2px solid ${idx === 0 ? 'var(--pen)' : 'var(--line)'}; border-radius: 8px; padding: 4px; background: #fff; cursor: pointer; text-align: center;"
                 >
                   <img src="${escapeHtml(slot.url)}" alt="${escapeHtml(slot.label)}" style="width: 100%; height: 58px; object-fit: cover; border-radius: 5px; display: block;" />
-                  <small style="display: block; font-size: 0.68rem; color: #4B5563; margin-top: 3px; font-weight: 600;">${escapeHtml(slot.label)}</small>
+                  <small style="display: block; font-size: 0.68rem; color: var(--ink-2); margin-top: 3px; font-weight: 600;">${escapeHtml(slot.label)}</small>
                 </button>
               `).join('')}
             </div>
@@ -690,7 +690,7 @@ function renderItemDetails(item) {
         </div>
 
         <div class="owner-card">
-          <span class="section-eyebrow">SHARED BY</span>
+          <span class="section-eyebrow">Shared by</span>
           <div class="owner-row">
             <div class="avatar-circle lg">${escapeHtml(owner.initials || 'U')}</div>
             <div>
@@ -708,7 +708,7 @@ function renderItemDetails(item) {
             <span class="course-tag">${escapeHtml(item.course_code || 'GEN 101')}</span>
             <span class="badge ${getExchangeBadgeClass(item.exchange_type)}">${escapeHtml(item.exchange_type)}</span>
             <span class="status-pill ${item.is_available ? 'available' : 'unavailable'}">
-              ${item.is_available ? '● Available' : '○ Unavailable'}
+              ${item.is_available ? 'Available' : 'Unavailable'}
             </span>
           </div>
 
@@ -868,7 +868,7 @@ async function loadFeedWorkspace(isSilent = false) {
             <div class="feed-poster-meta">
               <span class="avatar-circle">${escapeHtml(post.student_initials || 'ST')}</span>
               <div>
-                <strong style="font-size: 0.86rem; color: #111827; display: block;">
+                <strong style="font-size: 0.86rem; color: var(--ink); display: block;">
                   ${escapeHtml(post.student_name)}
                   ${isMine ? '<span class="mine-tag">(You)</span>' : ''}
                 </strong>
@@ -1038,6 +1038,63 @@ function closeFeedRespondModal() {
   if (backdrop) backdrop.classList.add('hidden');
 }
 
+// ---------------------------------------------------------------------------
+// Photo compression before upload. Hosted servers cap a request at about 4.5 MB,
+// and phone photos are often 3-8 MB each, so photos are resized to 1600px on the
+// long edge and re-encoded as JPEG before they leave the browser.
+// ---------------------------------------------------------------------------
+const UPLOAD_MAX_EDGE = 1600;
+const UPLOAD_TOTAL_LIMIT = 4 * 1024 * 1024;
+
+function compressImageFile(file) {
+  return new Promise((resolve) => {
+    if (!file || !file.type || !file.type.startsWith('image/') || file.type === 'image/gif' || file.size < 350 * 1024) {
+      resolve(file);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, UPLOAD_MAX_EDGE / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.naturalWidth * scale);
+      canvas.height = Math.round(img.naturalHeight * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (!blob || blob.size >= file.size) { resolve(file); return; }
+        const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+        resolve(new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() }));
+      }, 'image/jpeg', 0.82);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+// Replaces every photo in a FormData with a compressed copy. Returns false (and shows
+// a message) if the photos are still too large to send together.
+async function prepareUploadFormData(formData) {
+  const entries = [];
+  formData.forEach((value, key) => { if (value instanceof File && value.size > 0) entries.push([key, value]); });
+  const keys = [...new Set(entries.map(([key]) => key))];
+  keys.forEach((key) => formData.delete(key));
+  let total = 0;
+  for (const [key, file] of entries) {
+    const smaller = await compressImageFile(file);
+    total += smaller.size;
+    formData.append(key, smaller, smaller.name);
+  }
+  if (total > UPLOAD_TOTAL_LIMIT) {
+    showToast('These photos are too large to upload together. Use fewer photos or smaller ones (under 4 MB in total).', true);
+    return false;
+  }
+  return true;
+}
+
 async function handleFeedRespondSubmit(event) {
   event.preventDefault();
   const feedId = document.getElementById('feed-respond-id')?.value;
@@ -1063,6 +1120,9 @@ async function handleFeedRespondSubmit(event) {
   }
 
   try {
+    if (!(await prepareUploadFormData(formData))) {
+      throw new Error('');
+    }
     const res = await fetch(`/api/feed/respond/${feedId}`, {
       method: 'POST',
       body: formData
@@ -1085,7 +1145,7 @@ async function handleFeedRespondSubmit(event) {
       navigateTo('incoming');
     }
   } catch (err) {
-    showToast(err.message, true);
+    if (err.message) showToast(err.message, true);
   } finally {
     if (submitBtn) {
       submitBtn.disabled = false;
@@ -1144,7 +1204,7 @@ async function loadMyListings() {
             <span class="badge ${getExchangeBadgeClass(item.exchange_type)}">${escapeHtml(item.exchange_type)}</span>
             <span class="badge badge-neutral">${escapeHtml(item.condition)}</span>
             <span class="status-pill ${item.is_available ? 'available' : 'unavailable'}">
-              ${item.is_available ? '● Available' : '○ Unavailable'}
+              ${item.is_available ? 'Available' : 'Unavailable'}
             </span>
           </div>
           <h3>${escapeHtml(item.title)}</h3>
@@ -1254,6 +1314,9 @@ async function handleSaveResource(event) {
   submitBtn.textContent = 'Saving...';
 
   try {
+    if (!(await prepareUploadFormData(formData))) {
+      throw new Error('');
+    }
     const res = await fetch('/api/items/add-or-edit', {
       method: 'POST',
       body: formData
@@ -1266,7 +1329,7 @@ async function handleSaveResource(event) {
     showToast(data.message || 'Resource saved successfully!');
     navigateTo('my-listings');
   } catch (err) {
-    showToast(err.message, true);
+    if (err.message) showToast(err.message, true);
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = itemId ? 'Save Changes' : 'Publish Resource';
@@ -1540,7 +1603,7 @@ function renderRequestDetails(req) {
             <h3>Uploaded Device Proof Photos</h3>
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
               ${proofPhotos.map((url, idx) => `
-                <a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="display: block; border: 1px solid #E5E7EB; border-radius: 10px; overflow: hidden;">
+                <a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="display: block; border: 1px solid var(--line); border-radius: 10px; overflow: hidden;">
                   <img src="${escapeHtml(url)}" alt="Proof Photo ${idx + 1}" style="width: 100%; height: 110px; object-fit: cover; display: block;" />
                 </a>
               `).join('')}
@@ -1914,16 +1977,16 @@ function renderAdminLineChart(selectedMonthKey) {
   const gridLines = yTicks.map(tick => {
     const y = padTop + plotH - (tick / maxVal) * plotH;
     return `
-      <line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${width - padRight}" y2="${y.toFixed(1)}" stroke="#E5E7EB" stroke-dasharray="4 4" stroke-width="1" />
-      <text x="${padLeft - 8}" y="${(y + 4).toFixed(1)}" text-anchor="end" fill="#6B7280" font-size="11" font-weight="600">${tick}</text>
+      <line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${width - padRight}" y2="${y.toFixed(1)}" stroke="#E3E7EC" stroke-dasharray="2 6" stroke-linecap="round" stroke-width="1" />
+      <text x="${padLeft - 8}" y="${(y + 4).toFixed(1)}" text-anchor="end" fill="#7E8696" font-size="11" font-weight="600">${tick}</text>
     `;
   }).join('');
 
   const pointsSVG = coords.map(c => `
     <g>
-      <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="5.5" fill="#1B3B2B" stroke="#FFFFFF" stroke-width="2" />
-      <text x="${c.x.toFixed(1)}" y="${(c.y - 10).toFixed(1)}" text-anchor="middle" fill="#111827" font-size="11" font-weight="700">${c.val}</text>
-      <text x="${c.x.toFixed(1)}" y="${height - 10}" text-anchor="middle" fill="#4B5563" font-size="11" font-weight="600">${escapeHtml(c.label)}</text>
+      <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="5.5" fill="#FFFFFF" stroke="#10151D" stroke-width="2.5" />
+      <text x="${c.x.toFixed(1)}" y="${(c.y - 10).toFixed(1)}" text-anchor="middle" fill="#10151D" font-size="12" font-weight="700">${c.val}</text>
+      <text x="${c.x.toFixed(1)}" y="${height - 10}" text-anchor="middle" fill="#48505F" font-size="11" font-weight="600">${escapeHtml(c.label)}</text>
     </g>
   `).join('');
 
@@ -1933,13 +1996,13 @@ function renderAdminLineChart(selectedMonthKey) {
     <svg viewBox="0 0 ${width} ${height}" class="admin-line-svg" role="img" aria-label="Exchanges Over Time">
       <defs>
         <linearGradient id="lineAreaFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#1B3B2B" stop-opacity="0.24" />
-          <stop offset="100%" stop-color="#1B3B2B" stop-opacity="0.02" />
+          <stop offset="0%" stop-color="#2E6B39" stop-opacity="0.22" />
+          <stop offset="100%" stop-color="#2E6B39" stop-opacity="0" />
         </linearGradient>
       </defs>
       ${gridLines}
       <polygon points="${areaPoints}" fill="url(#lineAreaFill)" />
-      <polyline fill="none" stroke="#1B3B2B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${polylinePoints}" />
+      <polyline fill="none" stroke="#2E6B39" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${polylinePoints}" />
       ${pointsSVG}
     </svg>
     <div class="admin-chart-footer-meta">
@@ -1958,9 +2021,9 @@ function renderAdminDoughnutChart(breakdown) {
   const total = lend + donate + swap;
 
   const slices = [
-    { label: 'Lend', count: lend, color: '#2563EB' },
-    { label: 'Donate', count: donate, color: '#16A34A' },
-    { label: 'Swap', count: swap, color: '#D97706' }
+    { label: 'Lend', count: lend, color: '#5B8FC7' },
+    { label: 'Donate', count: donate, color: '#2E6B39' },
+    { label: 'Swap', count: swap, color: '#E2A54B' }
   ];
 
   const radius = 60;
@@ -1988,15 +2051,15 @@ function renderAdminDoughnutChart(breakdown) {
           />
         `;
     }).join('')
-    : `<circle cx="85" cy="85" r="${radius}" fill="transparent" stroke="#E5E7EB" stroke-width="24" />`;
+    : `<circle cx="85" cy="85" r="${radius}" fill="transparent" stroke="#ECEFF3" stroke-width="24" />`;
 
   container.innerHTML = `
     <div class="doughnut-layout">
       <div class="doughnut-svg-wrap">
         <svg width="170" height="170" viewBox="0 0 170 170" role="img" aria-label="Exchange Types Breakdown">
           ${circles}
-          <text x="85" y="81" text-anchor="middle" fill="#111827" font-size="22" font-weight="800">${total}</text>
-          <text x="85" y="99" text-anchor="middle" fill="#6B7280" font-size="11" font-weight="600">Active Items</text>
+          <text x="85" y="81" text-anchor="middle" fill="#10151D" font-size="30" font-weight="650" letter-spacing="-1">${total}</text>
+          <text x="85" y="99" text-anchor="middle" fill="#7E8696" font-size="11" font-weight="600">Active Items</text>
         </svg>
       </div>
       <div class="doughnut-legend">
@@ -2122,7 +2185,7 @@ async function loadAdminResources() {
               <span class="badge ${getExchangeBadgeClass(item.exchange_type)}">${escapeHtml(item.exchange_type)}</span>
               <span class="badge badge-neutral">${escapeHtml(item.condition)}</span>
               <span class="status-pill ${item.is_available ? 'available' : 'unavailable'}">
-                ${item.is_available ? '● Available' : '○ Unavailable'}
+                ${item.is_available ? 'Available' : 'Unavailable'}
               </span>
             </div>
             <h3>${escapeHtml(item.title)}</h3>
@@ -2635,7 +2698,7 @@ function renderSuggestionPills(mode) {
 
   const chips = SUGGESTED_CHIPS_BY_MODE[mode] || SUGGESTED_CHIPS_BY_MODE.crisis_shelter || [];
   if (!chips.length) {
-    container.innerHTML = '<span style="font-size: 0.8rem; color: #94A3B8;">Use the "+ Add Custom Item" button below to add custom items.</span>';
+    container.innerHTML = '<span style="font-size: 0.8rem; color: var(--ink-3);">Use the "+ Add Custom Item" button below to add custom items.</span>';
     return;
   }
 
@@ -2754,7 +2817,7 @@ function addCustomItemRowToBroadcastBuilder(bracket = '', name = '', qty = 10, u
       <input type="text" class="form-control item-unit-input" list="unit-datalist" value="${escapeAttr(safeUnit)}" placeholder="books, sets, kits" style="font-size: 0.82rem; padding: 0.35rem 0.5rem; width: 100%; box-sizing: border-box;" required />
     </td>
     <td style="padding: 0.5rem 0.4rem; text-align: center; vertical-align: top;">
-      <button type="button" class="btn-outline btn-sm" onclick="removeBroadcastItemRow(this)" style="color: #DC2626; border-color: #FECACA; padding: 0.25rem 0.45rem; line-height: 1;" title="Remove Item">&times;</button>
+      <button type="button" class="btn-outline btn-sm" onclick="removeBroadcastItemRow(this)" style="color: var(--danger); border-color: var(--danger-line); padding: 0.25rem 0.45rem; line-height: 1;" title="Remove Item">&times;</button>
     </td>
   `;
   tbody.appendChild(tr);
@@ -2975,8 +3038,8 @@ async function loadOrgBroadcasts(isSilent = false) {
     if (myContainer) {
       if (myBroadcasts.length === 0) {
         myContainer.innerHTML = `
-          <div class="empty-state" style="padding: 2rem 1.5rem; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; text-align: center;">
-            <p style="margin: 0; color: #64748B; font-size: 0.9rem;">You haven't created any needs broadcasts yet. Click <strong>"Create Needs Broadcast"</strong> above to launch a relief drive.</p>
+          <div class="empty-state" style="padding: 2rem 1.5rem; background: var(--surface-2); border: 1px dashed var(--line-2); border-radius: 8px; text-align: center;">
+            <p style="margin: 0; color: var(--ink-3); font-size: 0.9rem;">You haven't created any needs broadcasts yet. Click <strong>"Create Needs Broadcast"</strong> above to launch a relief drive.</p>
           </div>
         `;
       } else {
@@ -2988,8 +3051,8 @@ async function loadOrgBroadcasts(isSilent = false) {
     if (communityContainer) {
       if (communityBroadcasts.length === 0) {
         communityContainer.innerHTML = `
-          <div class="empty-state" style="padding: 2rem 1.5rem; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; text-align: center;">
-            <p style="margin: 0; color: #64748B; font-size: 0.9rem;">No active broadcasts from partner campus organizations at this time.</p>
+          <div class="empty-state" style="padding: 2rem 1.5rem; background: var(--surface-2); border: 1px dashed var(--line-2); border-radius: 8px; text-align: center;">
+            <p style="margin: 0; color: var(--ink-3); font-size: 0.9rem;">No active broadcasts from partner campus organizations at this time.</p>
           </div>
         `;
       } else {
@@ -3054,7 +3117,7 @@ function renderOrgBroadcastCard(b, isOrgPortalView = true, isMineOverride = null
           <span class="item-remaining-pill ${isFulfilled ? 'fulfilled' : ''}">
             ${isFulfilled ? 'Completed' : `(${remaining} left)`}
           </span>
-          ${!isFulfilled && item.quantity_pending ? `<span style="font-size: 0.72rem; font-weight: 700; color: #92400E; background: #FEF3C7; padding: 2px 6px; border-radius: 4px;" title="${item.quantity_pending} currently pledged and pending physical drop-off">${item.quantity_pending} pending</span>` : ''}
+          ${!isFulfilled && item.quantity_pending ? `<span style="font-size: 0.72rem; font-weight: 700; color: var(--amber); background: var(--amber-wash); padding: 2px 6px; border-radius: 4px;" title="${item.quantity_pending} currently pledged and pending physical drop-off">${item.quantity_pending} pending</span>` : ''}
           <span class="item-unit-tag">${escapeHtml(item.unit || 'units')}</span>
         </div>
       </div>
@@ -3121,7 +3184,7 @@ function renderOrgBroadcastCard(b, isOrgPortalView = true, isMineOverride = null
             <span class="progress-title">Relief Fulfillment Progress:</span>
             <span class="progress-counts">
               <strong>${b.items_secured || 0}</strong> of <strong>${b.items_needed || 0}</strong> items secured
-              ${b.items_pending ? ` <span style="font-weight: 600; color: #D97706;">(${b.items_pending} pending drop-off)</span>` : ''}
+              ${b.items_pending ? ` <span style="font-weight: 600; color: var(--amber);">(${b.items_pending} pending drop-off)</span>` : ''}
             </span>
           </div>
           <span class="progress-percentage ${pct >= 100 ? 'text-success' : 'text-primary'}">${pct}%</span>
@@ -3150,13 +3213,13 @@ function renderOrgBroadcastCard(b, isOrgPortalView = true, isMineOverride = null
         <div class="footer-actions">
           ${isOrgPortalView && (isMine || (currentUser && currentUser.role === 'Admin'))
             ? `
-              <button type="button" class="btn-primary btn-sm" onclick="openOrgRecordPage(${b.id})" style="background: #059669; border-color: #059669;">
+              <button type="button" class="btn-primary btn-sm" onclick="openOrgRecordPage(${b.id})" style="">
                 + Record Supplies
               </button>
               <button type="button" class="btn-outline btn-sm" onclick="openOrgBroadcastRecordsPage(${b.id})" style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                 <span>Records &amp; Pledges</span>
-                ${b.pending_pledges_count ? `<span style="background: #FEF3C7; color: #92400E; font-size: 0.72rem; font-weight: 800; padding: 1px 6px; border-radius: 9999px;">${b.pending_pledges_count}</span>` : ''}
+                ${b.pending_pledges_count ? `<span style="background: var(--amber-wash); color: var(--amber); font-size: 0.72rem; font-weight: 800; padding: 1px 6px; border-radius: 9999px;">${b.pending_pledges_count}</span>` : ''}
               </button>
               <button type="button" class="btn-outline btn-sm" onclick="openOrgEditBroadcast(${b.id})">
                 Edit
@@ -3171,7 +3234,7 @@ function renderOrgBroadcastCard(b, isOrgPortalView = true, isMineOverride = null
             : isOrgPortalView && !isMine
               ? b.is_active
                 ? `
-                  <button type="button" class="btn-primary btn-sm" onclick="openOrgRecordPage(${b.id})" style="display: flex; align-items: center; gap: 0.45rem; font-weight: 600; background: #2563EB; border-color: #2563EB;">
+                  <button type="button" class="btn-primary btn-sm" onclick="openOrgRecordPage(${b.id})" style="display: flex; align-items: center; gap: 0.45rem; font-weight: 600;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     <span>Contribute / Pledge Supplies</span>
                   </button>
@@ -3302,10 +3365,10 @@ async function openOrgRecordPage(broadcastId, returnView = null) {
         ${getUrgencyBadgeHtml(b.urgency_mode)}
         <span class="badge badge-blue">Verified Org</span>
       </div>
-      <h2 style="font-size: 1.25rem; font-weight: 800; color: #0F172A; margin: 0 0 0.45rem 0; line-height: 1.35;">
+      <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--ink); margin: 0 0 0.45rem 0; line-height: 1.35;">
         ${escapeHtml(b.title)}
       </h2>
-      <div style="font-size: 0.86rem; color: #475569; margin-bottom: 0.85rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+      <div style="font-size: 0.86rem; color: var(--ink-2); margin-bottom: 0.85rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
         <span><strong>${escapeHtml(b.org_name)}</strong></span>
         ${b.beneficiary_count ? `<span>&bull;</span> <span><strong>${b.beneficiary_count}</strong> Beneficiaries</span>` : ''}
       </div>
@@ -3340,7 +3403,7 @@ async function openOrgRecordPage(broadcastId, returnView = null) {
   if (itemsContainer) {
     const items = b.items || [];
     if (items.length === 0) {
-      itemsContainer.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: #64748B;">No supply items found for this drive.</div>';
+      itemsContainer.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--ink-3);">No supply items found for this drive.</div>';
     } else {
       itemsContainer.innerHTML = items.map(it => {
         const remaining = Math.max(0, it.quantity_needed - it.quantity_secured);
@@ -3352,10 +3415,10 @@ async function openOrgRecordPage(broadcastId, returnView = null) {
                 <span class="badge badge-neutral" style="font-size: 0.74rem; font-weight: 600;">${escapeHtml(it.age_bracket || 'General')}</span>
                 ${isFulfilled ? '<span class="badge badge-green" style="font-size: 0.72rem;">Fulfilled</span>' : ''}
               </div>
-              <div style="font-weight: 700; font-size: 0.95rem; color: #0F172A; margin-bottom: 3px;">
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--ink); margin-bottom: 3px;">
                 ${escapeHtml(it.item_name)}
               </div>
-              <div style="font-size: 0.8rem; color: #64748B;">
+              <div style="font-size: 0.8rem; color: var(--ink-3);">
                 <span><strong>${it.quantity_secured}</strong> / ${it.quantity_needed} secured</span>
                 <span style="margin: 0 5px; opacity: 0.5;">&bull;</span>
                 <span class="${isFulfilled ? 'text-success font-medium' : 'text-primary font-medium'}">
@@ -3392,7 +3455,7 @@ async function openOrgRecordPage(broadcastId, returnView = null) {
                   value="0"
                   min="0"
                   max="${remaining}"
-                  ${isFulfilled ? 'disabled style="background: #F1F5F9; color: #94A3B8;"' : ''}
+                  ${isFulfilled ? 'disabled style="background: var(--line); color: var(--ink-3);"' : ''}
                   oninput="handleBatchItemQtyChange(${it.id})"
                   style="width: 72px; text-align: center; font-weight: 800; font-size: 0.95rem; padding: 0.35rem 0.3rem;"
                 />
@@ -3404,7 +3467,7 @@ async function openOrgRecordPage(broadcastId, returnView = null) {
                   aria-label="Increase quantity"
                 >&plus;</button>
               </div>
-              <span style="font-size: 0.82rem; color: #64748B; min-width: 45px;">${escapeHtml(it.unit || 'units')}</span>
+              <span style="font-size: 0.82rem; color: var(--ink-3); min-width: 45px;">${escapeHtml(it.unit || 'units')}</span>
             </div>
           </div>
         `;
@@ -3572,16 +3635,16 @@ function openPledgePassModal(refCode, broadcast, contrib) {
   if (itemsContainer) {
     const items = (contrib && contrib.items) || [];
     itemsContainer.innerHTML = items.map(it => `
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; border-bottom: 1px solid #F1F5F9; font-size: 0.84rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--line); font-size: 0.84rem;">
         <div>
-          <span style="font-weight: 600; color: #0F172A;">${escapeHtml(it.item_name || 'Supply Item')}</span>
-          ${it.age_bracket ? `<span style="font-size: 0.75rem; color: #64748B; margin-left: 6px;">(${escapeHtml(it.age_bracket)})</span>` : ''}
+          <span style="font-weight: 600; color: var(--ink);">${escapeHtml(it.item_name || 'Supply Item')}</span>
+          ${it.age_bracket ? `<span style="font-size: 0.75rem; color: var(--ink-3); margin-left: 6px;">(${escapeHtml(it.age_bracket)})</span>` : ''}
         </div>
-        <div style="font-weight: 700; color: #166534;">
+        <div style="font-weight: 700; color: var(--green);">
           ${it.pledged_qty || it.quantity || 0} ${escapeHtml(it.unit || 'units')}
         </div>
       </div>
-    `).join('') || '<div style="padding: 0.5rem; text-align: center; color: #64748B;">No items specified.</div>';
+    `).join('') || '<div style="padding: 0.5rem; text-align: center; color: var(--ink-3);">No items specified.</div>';
   }
 
   modal.classList.remove('hidden');
@@ -3650,26 +3713,26 @@ function switchRecordsTab(tab) {
   if (tab === 'pending') {
     if (tabBtnPending) {
       tabBtnPending.classList.add('active');
-      tabBtnPending.style.borderBottomColor = '#2563EB';
-      tabBtnPending.style.color = '#2563EB';
+      tabBtnPending.style.borderBottomColor = 'var(--pen)';
+      tabBtnPending.style.color = 'var(--pen)';
     }
     if (tabBtnVerified) {
       tabBtnVerified.classList.remove('active');
       tabBtnVerified.style.borderBottomColor = 'transparent';
-      tabBtnVerified.style.color = '#64748B';
+      tabBtnVerified.style.color = 'var(--ink-3)';
     }
     if (panePending) panePending.classList.remove('hidden');
     if (paneVerified) paneVerified.classList.add('hidden');
   } else {
     if (tabBtnVerified) {
       tabBtnVerified.classList.add('active');
-      tabBtnVerified.style.borderBottomColor = '#059669';
-      tabBtnVerified.style.color = '#059669';
+      tabBtnVerified.style.borderBottomColor = 'var(--green)';
+      tabBtnVerified.style.color = 'var(--green)';
     }
     if (tabBtnPending) {
       tabBtnPending.classList.remove('active');
       tabBtnPending.style.borderBottomColor = 'transparent';
-      tabBtnPending.style.color = '#64748B';
+      tabBtnPending.style.color = 'var(--ink-3)';
     }
     if (paneVerified) paneVerified.classList.remove('hidden');
     if (panePending) panePending.classList.add('hidden');
@@ -3688,12 +3751,12 @@ function renderRecordsSummary(b) {
           ${getUrgencyBadgeHtml(b.urgency_mode)}
           <span class="badge ${b.is_active ? 'badge-green' : 'badge-neutral'}">${b.is_active ? 'Active Drive' : 'Closed'}</span>
         </div>
-        <h2 style="font-size: 1.25rem; font-weight: 800; color: #0F172A; margin: 0 0 2px 0;">${escapeHtml(b.title)}</h2>
-        <div style="font-size: 0.84rem; color: #64748B;">Drop-off Location: <strong style="color: #1E293B;">${escapeHtml(b.safe_drop_point || b.location)}</strong></div>
+        <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--ink); margin: 0 0 2px 0;">${escapeHtml(b.title)}</h2>
+        <div style="font-size: 0.84rem; color: var(--ink-3);">Drop-off Location: <strong style="color: var(--ink);">${escapeHtml(b.safe_drop_point || b.location)}</strong></div>
       </div>
       <div style="text-align: right;">
-        <span style="font-size: 1.15rem; font-weight: 800; color: #059669;">${pct}% Fulfilled</span>
-        <div style="font-size: 0.8rem; color: #64748B;">${b.items_secured || 0} / ${b.items_needed || 0} secured</div>
+        <span style="font-size: 1.15rem; font-weight: 800; color: var(--green);">${pct}% Fulfilled</span>
+        <div style="font-size: 0.8rem; color: var(--ink-3);">${b.items_secured || 0} / ${b.items_needed || 0} secured</div>
       </div>
     </div>
   `;
@@ -3713,49 +3776,49 @@ function renderRecordsTabsData() {
   if (pendingContainer) {
     if (pending.length === 0) {
       pendingContainer.innerHTML = `
-        <div style="background: #FFFFFF; border: 1px dashed #CBD5E1; border-radius: 10px; padding: 2.5rem 1.5rem; text-align: center; color: #64748B;">
+        <div style="background: #FFFFFF; border: 1px dashed var(--line-2); border-radius: 10px; padding: 2.5rem 1.5rem; text-align: center; color: var(--ink-3);">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8" style="margin-bottom: 0.5rem;"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-          <div style="font-weight: 700; color: #334155; font-size: 0.95rem; margin-bottom: 3px;">No Pending Drop-Offs</div>
+          <div style="font-weight: 700; color: var(--ink); font-size: 0.95rem; margin-bottom: 3px;">No Pending Drop-Offs</div>
           <p style="font-size: 0.84rem; margin: 0;">All community pledges have been verified or there are no open drop-offs at this time.</p>
         </div>
       `;
     } else {
       pendingContainer.innerHTML = pending.map(c => `
-        <div class="create-broadcast-card" style="margin-bottom: 1rem; border-left: 4px solid #F59E0B; text-align: left;">
+        <div class="create-broadcast-card" style="margin-bottom: 1rem; border-left: 4px solid var(--hl-edge); text-align: left;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
             <div>
               <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px;">
-                <span style="font-family: monospace; font-weight: 800; font-size: 1rem; color: #92400E; background: #FEF3C7; padding: 2px 8px; border-radius: 6px;">${escapeHtml(c.reference_code)}</span>
+                <span style="font-family: var(--font-ui); font-variant-numeric: tabular-nums;  font-weight: 800; font-size: 1rem; color: var(--amber); background: var(--amber-wash); padding: 2px 8px; border-radius: 6px;">${escapeHtml(c.reference_code)}</span>
                 <span class="badge ${c.contributor_type === 'organization' ? 'badge-amber' : 'badge-blue'}">${c.contributor_type === 'organization' ? 'Organization' : 'Student'}</span>
                 <span class="badge badge-amber">Pending Drop-off</span>
               </div>
-              <div style="font-weight: 700; font-size: 1rem; color: #0F172A;">${escapeHtml(c.contributor_name)}</div>
-              <div style="font-size: 0.78rem; color: #64748B;">Pledged on ${escapeHtml(c.created_at)}</div>
+              <div style="font-weight: 700; font-size: 1rem; color: var(--ink);">${escapeHtml(c.contributor_name)}</div>
+              <div style="font-size: 0.78rem; color: var(--ink-3);">Pledged on ${escapeHtml(c.created_at)}</div>
             </div>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <button type="button" class="btn-primary btn-sm" onclick="openVerifyModalForContribution(${c.id})" style="background: #059669; border-color: #059669; display: inline-flex; align-items: center; gap: 4px; font-weight: 700;">
+              <button type="button" class="btn-primary btn-sm" onclick="openVerifyModalForContribution(${c.id})" style=" display: inline-flex; align-items: center; gap: 4px; font-weight: 700;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 Verify &amp; Mark Received
               </button>
-              <button type="button" class="btn-outline btn-sm" onclick="confirmCancelContribution(${c.id}, '${escapeAttr(c.reference_code)}')" style="color: #DC2626; border-color: #FECACA;">
+              <button type="button" class="btn-outline btn-sm" onclick="confirmCancelContribution(${c.id}, '${escapeAttr(c.reference_code)}')" style="color: var(--danger); border-color: var(--danger-line);">
                 Cancel / No-Show
               </button>
             </div>
           </div>
 
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 0.5rem;">
-            <div style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px;">Pledged Supplies (${c.total_items_pledged} items total):</div>
+          <div style="background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 0.5rem;">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--ink-2); margin-bottom: 4px;">Pledged Supplies (${c.total_items_pledged} items total):</div>
             <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
               ${(c.items || []).map(it => `
-                <div style="background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 3px 8px; font-size: 0.82rem;">
+                <div style="background: #FFFFFF; border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 8px; font-size: 0.82rem;">
                   <strong>${it.pledged_qty || it.quantity || 0} ${escapeHtml(it.unit || 'units')}</strong> &bull; ${escapeHtml(it.item_name)}
-                  ${it.age_bracket ? `<span style="color: #64748B; font-size: 0.75rem;">(${escapeHtml(it.age_bracket)})</span>` : ''}
+                  ${it.age_bracket ? `<span style="color: var(--ink-3); font-size: 0.75rem;">(${escapeHtml(it.age_bracket)})</span>` : ''}
                 </div>
               `).join('')}
             </div>
           </div>
 
-          ${c.notes ? `<div style="font-size: 0.8rem; color: #64748B;"><strong>Note:</strong> ${escapeHtml(c.notes)}</div>` : ''}
+          ${c.notes ? `<div style="font-size: 0.8rem; color: var(--ink-3);"><strong>Note:</strong> ${escapeHtml(c.notes)}</div>` : ''}
         </div>
       `).join('');
     }
@@ -3767,22 +3830,22 @@ function renderRecordsTabsData() {
     if (verified.length === 0) {
       verifiedTbody.innerHTML = `
         <tr>
-          <td colspan="5" style="padding: 2rem; text-align: center; color: #64748B;">
+          <td colspan="5" style="padding: 2rem; text-align: center; color: var(--ink-3);">
             No verified transactions logged yet. Verified pledges and physical offline receipts will appear in this audit ledger.
           </td>
         </tr>
       `;
     } else {
       verifiedTbody.innerHTML = verified.map(c => `
-        <tr style="border-bottom: 1px solid #F1F5F9;">
-          <td style="padding: 0.75rem 0.85rem; font-family: monospace; font-weight: 700; color: #0F172A;">
+        <tr style="border-bottom: 1px solid var(--line);">
+          <td style="padding: 0.75rem 0.85rem; font-family: var(--font-ui); font-variant-numeric: tabular-nums;  font-weight: 700; color: var(--ink);">
             ${escapeHtml(c.reference_code)}
           </td>
-          <td style="padding: 0.75rem 0.85rem; color: #475569; white-space: nowrap;">
+          <td style="padding: 0.75rem 0.85rem; color: var(--ink-2); white-space: nowrap;">
             ${escapeHtml(c.verified_at || c.created_at)}
           </td>
           <td style="padding: 0.75rem 0.85rem;">
-            <div style="font-weight: 600; color: #0F172A;">${escapeHtml(c.contributor_name)}</div>
+            <div style="font-weight: 600; color: var(--ink);">${escapeHtml(c.contributor_name)}</div>
             <span class="badge ${c.contributor_type === 'offline_walkin' ? 'badge-neutral' : (c.contributor_type === 'organization' ? 'badge-amber' : 'badge-blue')}" style="font-size: 0.68rem; margin-top: 2px;">
               ${c.contributor_type === 'offline_walkin' ? 'Offline Walk-in' : (c.contributor_type === 'organization' ? 'Organization' : 'Student')}
             </span>
@@ -3790,15 +3853,15 @@ function renderRecordsTabsData() {
           <td style="padding: 0.75rem 0.85rem;">
             <div style="display: flex; flex-direction: column; gap: 3px;">
               ${(c.items || []).map(it => `
-                <span style="color: #1E293B; font-size: 0.82rem;">
+                <span style="color: var(--ink); font-size: 0.82rem;">
                   <strong>${it.received_qty != null ? it.received_qty : (it.pledged_qty || 0)} ${escapeHtml(it.unit || 'units')}</strong> &bull; ${escapeHtml(it.item_name)}
                 </span>
               `).join('')}
             </div>
           </td>
-          <td style="padding: 0.75rem 0.85rem; color: #64748B; font-size: 0.8rem;">
+          <td style="padding: 0.75rem 0.85rem; color: var(--ink-3); font-size: 0.8rem;">
             <div>Verified by: <strong>${escapeHtml(c.verified_by || 'Organization')}</strong></div>
-            ${c.notes ? `<div style="margin-top: 2px; color: #475569; font-style: italic;">${escapeHtml(c.notes)}</div>` : ''}
+            ${c.notes ? `<div style="margin-top: 2px; color: var(--ink-2); font-style: italic;">${escapeHtml(c.notes)}</div>` : ''}
           </td>
         </tr>
       `).join('');
@@ -3829,16 +3892,16 @@ function openVerifyModalForContribution(contribId) {
     metaEl.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
         <div>
-          <span style="font-family: monospace; font-weight: 800; color: #166534; font-size: 0.95rem;">${escapeHtml(contrib.reference_code)}</span>
+          <span style="font-family: var(--font-ui); font-variant-numeric: tabular-nums;  font-weight: 800; color: var(--green); font-size: 0.95rem;">${escapeHtml(contrib.reference_code)}</span>
           <span style="margin: 0 6px; opacity: 0.4;">&bull;</span>
           <strong>${escapeHtml(contrib.contributor_name)}</strong>
           <span class="badge ${contrib.contributor_type === 'organization' ? 'badge-amber' : 'badge-blue'}" style="font-size: 0.7rem; margin-left: 6px;">
             ${contrib.contributor_type === 'organization' ? 'Organization' : 'Student'}
           </span>
         </div>
-        <div style="font-size: 0.78rem; color: #64748B;">Pledged: ${escapeHtml(contrib.created_at)}</div>
+        <div style="font-size: 0.78rem; color: var(--ink-3);">Pledged: ${escapeHtml(contrib.created_at)}</div>
       </div>
-      ${contrib.notes ? `<div style="margin-top: 6px; font-size: 0.8rem; color: #475569;"><em>Note: ${escapeHtml(contrib.notes)}</em></div>` : ''}
+      ${contrib.notes ? `<div style="margin-top: 6px; font-size: 0.8rem; color: var(--ink-2);"><em>Note: ${escapeHtml(contrib.notes)}</em></div>` : ''}
     `;
   }
 
@@ -3847,12 +3910,12 @@ function openVerifyModalForContribution(contribId) {
     tbody.innerHTML = (contrib.items || []).map(it => {
       const pledged = it.pledged_qty || it.quantity || 0;
       return `
-        <tr style="border-bottom: 1px solid #F1F5F9;">
+        <tr style="border-bottom: 1px solid var(--line);">
           <td style="padding: 0.55rem 0.65rem;">
-            <div style="font-weight: 600; color: #0F172A;">${escapeHtml(it.item_name)}</div>
-            ${it.age_bracket ? `<span style="font-size: 0.74rem; color: #64748B;">${escapeHtml(it.age_bracket)}</span>` : ''}
+            <div style="font-weight: 600; color: var(--ink);">${escapeHtml(it.item_name)}</div>
+            ${it.age_bracket ? `<span style="font-size: 0.74rem; color: var(--ink-3);">${escapeHtml(it.age_bracket)}</span>` : ''}
           </td>
-          <td style="padding: 0.55rem 0.65rem; text-align: right; font-weight: 700; color: #64748B;">
+          <td style="padding: 0.55rem 0.65rem; text-align: right; font-weight: 700; color: var(--ink-3);">
             ${pledged} ${escapeHtml(it.unit || 'units')}
           </td>
           <td style="padding: 0.55rem 0.65rem; text-align: right;">
@@ -3958,7 +4021,7 @@ async function loadMyContributions() {
   const container = document.getElementById('my-contributions-container');
   if (!container) return;
 
-  container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748B;">Loading contribution records...</div>';
+  container.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--ink-3);">Loading contribution records...</div>';
 
   try {
     const res = await fetch('/api/user/contributions');
@@ -3968,10 +4031,10 @@ async function loadMyContributions() {
 
     if (list.length === 0) {
       container.innerHTML = `
-        <div style="background: #FFFFFF; border: 1px dashed #CBD5E1; border-radius: 12px; padding: 3rem 1.5rem; text-align: center;">
+        <div style="background: #FFFFFF; border: 1px dashed var(--line-2); border-radius: 12px; padding: 3rem 1.5rem; text-align: center;">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8" style="margin-bottom: 0.75rem;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-          <h3 style="font-size: 1.1rem; font-weight: 700; color: #334155; margin: 0 0 6px 0;">No Contributions Yet</h3>
-          <p style="font-size: 0.88rem; color: #64748B; max-width: 480px; margin: 0 auto 1.25rem auto;">
+          <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--ink); margin: 0 0 6px 0;">No Contributions Yet</h3>
+          <p style="font-size: 0.88rem; color: var(--ink-3); max-width: 480px; margin: 0 auto 1.25rem auto;">
             You haven't pledged toward any organization relief drives yet. Browse open drives to contribute storybooks, learning materials, or study kits.
           </p>
           <button type="button" class="btn-primary btn-sm" onclick="navigateTo('${currentUser && currentUser.role === 'Organization' ? 'org-broadcasts' : 'feed'}')">
@@ -3989,52 +4052,52 @@ async function loadMyContributions() {
       const badgeText = isVerified ? 'Verified Received' : (isPending ? 'Pending Drop-off' : 'Cancelled');
 
       return `
-        <div class="create-broadcast-card" style="margin-bottom: 1.25rem; border-left: 4px solid ${isVerified ? '#059669' : (isPending ? '#F59E0B' : '#94A3B8')}; text-align: left;">
+        <div class="create-broadcast-card" style="margin-bottom: 1.25rem; border-left: 4px solid ${isVerified ? 'var(--green)' : (isPending ? 'var(--hl-edge)' : 'var(--ink-3)')}; text-align: left;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
             <div>
               <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px;">
-                <span style="font-family: monospace; font-weight: 800; font-size: 1.05rem; color: ${isVerified ? '#14532D' : '#92400E'}; background: ${isVerified ? '#DCFCE7' : '#FEF3C7'}; padding: 2px 8px; border-radius: 6px;">${escapeHtml(c.reference_code)}</span>
+                <span style="font-family: var(--font-ui); font-variant-numeric: tabular-nums;  font-weight: 800; font-size: 1.05rem; color: ${isVerified ? 'var(--green)' : 'var(--amber)'}; background: ${isVerified ? 'var(--green-wash)' : 'var(--amber-wash)'}; padding: 2px 8px; border-radius: 6px;">${escapeHtml(c.reference_code)}</span>
                 <span class="badge ${badgeClass}">${badgeText}</span>
                 ${getUrgencyBadgeHtml(c.urgency_mode)}
               </div>
-              <h3 style="font-size: 1.15rem; font-weight: 800; color: #0F172A; margin: 0 0 2px 0;">${escapeHtml(c.broadcast_title || 'Relief Drive')}</h3>
-              <div style="font-size: 0.84rem; color: #475569;">
+              <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--ink); margin: 0 0 2px 0;">${escapeHtml(c.broadcast_title || 'Relief Drive')}</h3>
+              <div style="font-size: 0.84rem; color: var(--ink-2);">
                 Organized by <strong>${escapeHtml(c.org_name || 'Organization')}</strong> &bull; Pledged on ${escapeHtml(c.created_at)}
               </div>
             </div>
             ${isPending ? `
-              <button type="button" class="btn-outline btn-sm" onclick="confirmCancelContribution(${c.id}, '${escapeAttr(c.reference_code)}')" style="color: #DC2626; border-color: #FECACA;">
+              <button type="button" class="btn-outline btn-sm" onclick="confirmCancelContribution(${c.id}, '${escapeAttr(c.reference_code)}')" style="color: var(--danger); border-color: var(--danger-line);">
                 Cancel Pledge
               </button>
             ` : ''}
           </div>
 
           <!-- Drop Point Notice -->
-          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 0.75rem;">
-            <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 2px;">Designated Drop-Off Point:</span>
-            <div style="font-size: 0.88rem; font-weight: 600; color: #0F172A;">${escapeHtml(c.safe_drop_point || 'Campus Drop-Off Point')}</div>
+          <div style="background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 0.75rem;">
+            <span style="font-size: 0.74rem; font-weight: 700; color: var(--ink-2); display: block; margin-bottom: 2px;">Designated Drop-Off Point:</span>
+            <div style="font-size: 0.88rem; font-weight: 600; color: var(--ink);">${escapeHtml(c.safe_drop_point || 'Campus Drop-Off Point')}</div>
           </div>
 
           <!-- Items Breakdown -->
           <div style="margin-bottom: 0.65rem;">
-            <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 4px;">Pledged Supplies:</span>
+            <span style="font-size: 0.74rem; font-weight: 700; color: var(--ink-2); display: block; margin-bottom: 4px;">Pledged Supplies:</span>
             <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
               ${(c.items || []).map(it => `
-                <div style="background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 4px 10px; font-size: 0.82rem;">
-                  <strong style="color: ${isVerified ? '#059669' : '#0F172A'};">${isVerified ? (it.received_qty != null ? it.received_qty : it.pledged_qty) : (it.pledged_qty || it.quantity || 0)} ${escapeHtml(it.unit || 'units')}</strong>
+                <div style="background: #FFFFFF; border: 1px solid var(--line-2); border-radius: 6px; padding: 4px 10px; font-size: 0.82rem;">
+                  <strong style="color: ${isVerified ? 'var(--green)' : 'var(--ink)'};">${isVerified ? (it.received_qty != null ? it.received_qty : it.pledged_qty) : (it.pledged_qty || it.quantity || 0)} ${escapeHtml(it.unit || 'units')}</strong>
                   &bull; ${escapeHtml(it.item_name)}
-                  ${it.age_bracket ? `<span style="color: #64748B; font-size: 0.74rem;">(${escapeHtml(it.age_bracket)})</span>` : ''}
+                  ${it.age_bracket ? `<span style="color: var(--ink-3); font-size: 0.74rem;">(${escapeHtml(it.age_bracket)})</span>` : ''}
                 </div>
               `).join('')}
             </div>
           </div>
 
           ${isVerified ? `
-            <div style="font-size: 0.8rem; color: #059669; font-weight: 600;">
+            <div style="font-size: 0.8rem; color: var(--green); font-weight: 600;">
               Physically verified on ${escapeHtml(c.verified_at)} by ${escapeHtml(c.verified_by || 'Organization')}
             </div>
           ` : `
-            <div style="font-size: 0.78rem; color: #D97706;">
+            <div style="font-size: 0.78rem; color: var(--amber);">
               Please bring items to the drop-off point and present reference code <strong>${escapeHtml(c.reference_code)}</strong> to complete verification.
             </div>
           `}
@@ -4043,6 +4106,6 @@ async function loadMyContributions() {
     }).join('');
   } catch (err) {
     console.error('Error loading my contributions:', err);
-    container.innerHTML = `<div style="padding: 2rem; text-align: center; color: #DC2626;">${escapeHtml(err.message)}</div>`;
+    container.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--danger);">${escapeHtml(err.message)}</div>`;
   }
 }

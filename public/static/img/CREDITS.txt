@@ -1,0 +1,14 @@
+Photos in this folder are from Unsplash and used under the Unsplash License
+(free for commercial and non-commercial use, no attribution required).
+
+hero-valley.jpg / hero-valley-sm.jpg
+  "A scenic view of a green valley with mountains in the background", Pokhara, Nepal
+  by Nirajan Dhakal: https://unsplash.com/photos/WhZTCXud5Xc
+
+library-student.jpg
+  "Student studies at a library with books"
+  https://unsplash.com/photos/klbApl9mxr0
+
+book-fair.jpg
+  "A table full of books" (school book fair) by Eman Ali
+  https://unsplash.com/photos/-xIWf2DUq0I
