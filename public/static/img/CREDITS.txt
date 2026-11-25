@@ -1,0 +1,9 @@
+All pictures in this folder are original illustrations drawn for ShareLoop as SVG
+(hand-written vector code, no photos or third-party artwork).
+
+hero-share.svg        landing page: two students pass a book inside the ShareLoop loop
+students-books.svg    landing page, "For students": a student carrying books from a shelf
+book-drive.svg        landing page, "For organizations": a book drive with a donation box
+book-shelves.svg      closing banner and sidebar card: shelves of colourful books
+books/*.svg           demo listing pictures: an invented front and back cover per item
+                      (not copies of the real book covers)

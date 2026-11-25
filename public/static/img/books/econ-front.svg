@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Principles of Economics, front cover">
+  <rect width="800" height="600" fill="#F6EBD8"/>
+  <rect y="470" width="800" height="130" fill="#000" opacity="0.05"/>
+  <ellipse cx="410" cy="512" rx="180" ry="16" fill="#10151D" opacity="0.18"/>
+  <g transform="rotate(-3 400 300)">
+    <rect x="268" y="102" width="280" height="400" rx="8" fill="#F4F1EA"/>
+    <rect x="268" y="102" width="280" height="400" rx="8" fill="none" stroke="#DCD6C8" stroke-width="2"/>
+    <rect x="260" y="96" width="280" height="400" rx="8" fill="#C27A17"/>
+    <rect x="260" y="96" width="20" height="400" rx="6" fill="#8F5810"/>
+    <rect x="280" y="96" width="3" height="400" fill="#000" opacity="0.12"/>
+    <text x="302" y="154" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="28" font-weight="800" fill="#FFFFFF" letter-spacing="-0.5">Principles of</text>
+    <text x="302" y="186" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="28" font-weight="800" fill="#FFFFFF" letter-spacing="-0.5">Economics</text>
+    <text x="302" y="224" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#FFFFFF" opacity="0.8">9th Edition</text>
+    <text x="302" y="468" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#FFFFFF" opacity="0.85">N. Gregory Mankiw</text>
+    <g transform="translate(320 290)" fill="none" stroke-width="6" stroke-linecap="round">
+      <path d="M10 0 V150 H170" stroke="#FFF1D6" stroke-width="4"/>
+      <path d="M26 20 Q90 120 160 136" stroke="#FFFFFF"/>
+      <path d="M26 132 Q100 110 160 20" stroke="#2B1A05"/>
+      <circle cx="96" cy="99" r="8" fill="#FFFFFF" stroke="none"/>
+    </g>
+  </g>
+</svg>

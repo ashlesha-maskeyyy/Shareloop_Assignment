@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Introduction to Algorithms, front cover">
+  <rect width="800" height="600" fill="#DCEFEA"/>
+  <rect y="470" width="800" height="130" fill="#000" opacity="0.05"/>
+  <ellipse cx="410" cy="512" rx="180" ry="16" fill="#10151D" opacity="0.18"/>
+  <g transform="rotate(-3 400 300)">
+    <rect x="268" y="102" width="280" height="400" rx="8" fill="#F4F1EA"/>
+    <rect x="268" y="102" width="280" height="400" rx="8" fill="none" stroke="#DCD6C8" stroke-width="2"/>
+    <rect x="260" y="96" width="280" height="400" rx="8" fill="#0F5E57"/>
+    <rect x="260" y="96" width="20" height="400" rx="6" fill="#0A403B"/>
+    <rect x="280" y="96" width="3" height="400" fill="#000" opacity="0.12"/>
+    <text x="302" y="154" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="28" font-weight="800" fill="#FFFFFF" letter-spacing="-0.5">Introduction</text>
+    <text x="302" y="186" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="28" font-weight="800" fill="#FFFFFF" letter-spacing="-0.5">to Algorithms</text>
+    <text x="302" y="224" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#FFFFFF" opacity="0.8">4th Edition</text>
+    <text x="302" y="468" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#FFFFFF" opacity="0.85">Cormen, Leiserson, Rivest, Stein</text>
+    <g transform="translate(400 330)" stroke="#9FE0D3" stroke-width="4" stroke-linecap="round">
+      <path d="M0 0 L-60 56 M0 0 L60 56 M-60 56 L-92 110 M-60 56 L-28 110 M60 56 L92 110"/>
+      <g fill="#E6FFF8" stroke="none"><circle r="16"/><circle cx="-60" cy="56" r="14"/><circle cx="60" cy="56" r="14"/><circle cx="-92" cy="110" r="11"/><circle cx="-28" cy="110" r="11"/><circle cx="92" cy="110" r="11"/></g>
+    </g>
+  </g>
+</svg>

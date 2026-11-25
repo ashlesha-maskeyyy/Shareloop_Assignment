@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Small digital oscilloscope showing a sine wave">
+  <rect width="800" height="600" fill="#DCE7F0"/>
+  <ellipse cx="400" cy="500" rx="240" ry="18" fill="#10151D" opacity="0.15"/>
+  <rect x="180" y="150" width="440" height="330" rx="24" fill="#2A3346"/>
+  <rect x="210" y="180" width="270" height="200" rx="10" fill="#0E2A1A"/>
+  <g stroke="#1F4D33" stroke-width="1"><path d="M237 180 V380"/><path d="M264 180 V380"/><path d="M291 180 V380"/><path d="M318 180 V380"/><path d="M345 180 V380"/><path d="M372 180 V380"/><path d="M399 180 V380"/><path d="M426 180 V380"/><path d="M453 180 V380"/><path d="M210 205 H480"/><path d="M210 230 H480"/><path d="M210 255 H480"/><path d="M210 280 H480"/><path d="M210 305 H480"/><path d="M210 330 H480"/><path d="M210 355 H480"/></g>
+  <path d="M210 280 Q236 200 262 280 T314 280 T366 280 T418 280 T470 280" fill="none" stroke="#8BC97C" stroke-width="4"/>
+  <g fill="#3B465E"><circle cx="540" cy="210" r="24"/><circle cx="540" cy="290" r="24"/></g>
+  <g fill="#8796B0"><rect x="537" y="190" width="6" height="16" rx="3"/><rect x="551" y="284" width="16" height="6" rx="3"/></g>
+  <g fill="#E2A54B"><rect x="510" y="340" width="26" height="16" rx="4"/><rect x="546" y="340" width="26" height="16" rx="4"/></g>
+  <g fill="#C23A2C"><circle cx="232" cy="430" r="10"/></g><g fill="#2E6B39"><circle cx="270" cy="430" r="10"/></g>
+  <path d="M232 430 C200 520 120 470 100 540" fill="none" stroke="#C23A2C" stroke-width="6" stroke-linecap="round"/>
+  <path d="M270 430 C300 520 180 520 160 560" fill="none" stroke="#10151D" stroke-width="6" stroke-linecap="round"/>
+</svg>

@@ -52,20 +52,77 @@ try:
 except ImportError:
     pass
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shareloop-production-secret-key-2026')
+# ---------------------------------------------------------------------------
+# Runtime environment
+# ---------------------------------------------------------------------------
+# Vercel sets VERCEL=1 for builds and functions. Static files live in public/static so
+# Vercel's CDN serves them at /static/... ; locally Flask serves the same folder.
+ON_VERCEL = bool(os.environ.get('VERCEL'))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    static_folder=os.path.join(BASE_DIR, 'public', 'static'),
+    static_url_path='/static',
+)
+
+# Behind Vercel/Render proxies: trust X-Forwarded-Proto/Host so url_for(_external=True) builds https links.
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+_secret_key = os.environ.get('SECRET_KEY')
+if not _secret_key:
+    if ON_VERCEL:
+        raise RuntimeError(
+            'SECRET_KEY is not set. Add it in Vercel > Project > Settings > Environment Variables '
+            '(generate one with: python -c "import secrets; print(secrets.token_hex(32))").'
+        )
+    _secret_key = 'shareloop-local-dev-only-secret'
+app.config['SECRET_KEY'] = _secret_key
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = ON_VERCEL or os.environ.get('SESSION_COOKIE_SECURE') == '1'
 PASSWORD_RESET_SALT = 'shareloop-password-reset-salt'
 reset_serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+
+
+def password_fingerprint(user) -> str:
+    """Short hash of the stored password hash. Reset links carry it, so a link stops
+    working as soon as the password is changed (each link can be used once)."""
+    import hashlib
+    return hashlib.sha256((user.password_hash or '').encode()).hexdigest()[:16]
+
+
+def make_reset_token(user) -> str:
+    return reset_serializer.dumps({'e': user.email, 'p': password_fingerprint(user)}, salt=PASSWORD_RESET_SALT)
+
+
+def read_reset_token(token: str):
+    """Returns the User for a valid, unused reset link, or raises SignatureExpired /
+    BadSignature. Returns None if the account no longer exists."""
+    payload = reset_serializer.loads(token, salt=PASSWORD_RESET_SALT, max_age=900)
+    email = payload.get('e') if isinstance(payload, dict) else payload
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return None
+    if isinstance(payload, dict) and payload.get('p') != password_fingerprint(user):
+        raise BadSignature('This reset link has already been used.')
+    return user
 
 # ---------------------------------------------------------------------------
 # Dynamic Local File Upload Storage Configuration
 # ---------------------------------------------------------------------------
-UPLOAD_SUBDIR = os.path.join('static', 'uploads')
-UPLOAD_FOLDER = os.path.join(app.root_path, UPLOAD_SUBDIR)
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Production (Vercel): photos go to Vercel Blob (BLOB_READ_WRITE_TOKEN is added automatically
+# when a Blob store is connected to the project). Locally: public/static/uploads/.
+BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN', '')
+USE_BLOB_STORAGE = bool(BLOB_TOKEN)
+UPLOAD_FOLDER = os.path.join(app.static_folder, 'uploads')
+if not USE_BLOB_STORAGE and not ON_VERCEL:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload payload
+# Vercel Functions accept request bodies up to 4.5 MB; the browser compresses photos before sending.
+app.config['MAX_CONTENT_LENGTH'] = (4 if ON_VERCEL else 16) * 1024 * 1024
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 
 # ---------------------------------------------------------------------------
@@ -132,6 +189,26 @@ def save_uploaded_image(file_storage, slot_prefix: str = 'resource') -> str | No
     safe_slot = secure_filename(slot_prefix) or 'photo'
     final_filename = f"{safe_slot}_{timestamp}_{unique_token}.{ext}"
 
+    if USE_BLOB_STORAGE:
+        from vercel.blob import sync as vercel_blob
+        try:
+            uploaded = vercel_blob.put_blob(
+                f"uploads/{final_filename}",
+                file_storage.read(),
+                access='public',
+                content_type=file_storage.mimetype or f"image/{'jpeg' if ext == 'jpg' else ext}",
+                add_random_suffix=True,
+                cache_control_max_age=31536000,
+            )
+        except Exception as err:
+            print(f"[BLOB ERROR] Upload of {final_filename} failed: {err}", flush=True)
+            raise RuntimeError('Photo upload failed. Check that a public Vercel Blob store is connected to this project.') from err
+        return uploaded.url
+
+    if ON_VERCEL:
+        # The function filesystem is read-only and temporary; refuse rather than lose the photo.
+        raise RuntimeError('Photo storage is not configured: connect a Vercel Blob store to this project.')
+
     destination = os.path.join(app.config['UPLOAD_FOLDER'], final_filename)
     file_storage.save(destination)
     return f"/static/uploads/{final_filename}"
@@ -171,7 +248,7 @@ def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str
     print(f"[RECOVERY URL]     {reset_url}", flush=True)
     if not mail_username or not mail_password:
         print("[SMTP NOTICE]     MAIL_USERNAME or MAIL_PASSWORD not configured in environment.", flush=True)
-        print("                  Configure Gmail App Password on Render to enable live email delivery.", flush=True)
+        print("                  Configure Gmail App Password in your hosting environment variables to enable live email delivery.", flush=True)
     else:
         print(f"[SMTP CONNECT]    Connecting to {mail_server}:{mail_port} as {mail_username}...", flush=True)
     print("=" * 64 + "\n", flush=True)
@@ -230,7 +307,7 @@ def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str
       </p>
     </div>
     <div class="footer">
-      &copy; 2026 ShareLoop University Exchange &bull; Safe Peer-to-Peer Campus Resource Sharing
+      &copy; 2026 ShareLoop Student Resources Exchange
     </div>
   </div>
 </body>
@@ -257,6 +334,13 @@ def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str
 
 
 NEPALI_PHONE_REGEX = re.compile(r'^(?:\(\+977\)\s*|\+977[\s\-]?)?([0-9]{10})$')
+# name@domain.tld: letters, digits and . _ % + - before the @, a real domain with a 2+ letter ending after it
+EMAIL_REGEX = re.compile(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$')
+INVALID_EMAIL_MESSAGE = 'Enter a valid email address, like name@gmail.com.'
+
+
+def is_valid_email(email: str) -> bool:
+    return bool(email) and len(email) <= 254 and bool(EMAIL_REGEX.match(email))
 
 
 def validate_nepali_phone(phone_raw: str) -> tuple[bool, str]:
@@ -274,7 +358,7 @@ def validate_nepali_phone(phone_raw: str) -> tuple[bool, str]:
     if not match:
         return (
             False,
-            'Invalid phone number. Please enter exactly 10 digits with optional (+977) prefix (e.g. (+977) 9848262163).'
+            'Enter a 10-digit phone number, like 9848262163.'
         )
 
     ten_digits = match.group(1)
@@ -302,20 +386,34 @@ def parse_dob_input(dob_raw: str) -> date | None:
 # ---------------------------------------------------------------------------
 def normalize_database_url(url: str) -> str:
     if not url:
+        if ON_VERCEL:
+            raise RuntimeError(
+                'DATABASE_URL is not set. Connect a Neon Postgres database to this Vercel project '
+                '(Storage tab) so DATABASE_URL is added, then redeploy.'
+            )
         return 'sqlite:///shareloop.db'
     if url.startswith('postgres://'):
         url = url.replace('postgres://', 'postgresql://', 1)
     return url
 
 
-raw_db_url = normalize_database_url(os.environ.get('DATABASE_URL', ''))
+# Neon's Vercel integration sets DATABASE_URL (pooled); POSTGRES_URL is accepted as a fallback.
+raw_db_url = normalize_database_url(os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL', ''))
 
 app.config['SQLALCHEMY_DATABASE_URI'] = raw_db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-}
+if raw_db_url.startswith('sqlite'):
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {}
+else:
+    # Small pool per function instance; Neon's pooler handles fan-in. pre_ping drops
+    # connections Neon closed while the database was scaled to zero.
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 280,
+        'pool_size': 3,
+        'max_overflow': 2,
+        'connect_args': {'connect_timeout': 10},
+    }
 
 db.init_app(app)
 
@@ -337,6 +435,14 @@ def api_login_required(f):
         if not user:
             return jsonify({'error': 'Authentication required. Please log in.'}), 401
         return f(user, *args, **kwargs)
+    return decorated
+
+
+def api_optional_user(f):
+    """Passes the signed-in user, or None for visitors who are just browsing."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        return f(get_current_user(), *args, **kwargs)
     return decorated
 
 
@@ -402,7 +508,30 @@ def index():
     user = get_current_user()
     if not user:
         return render_template('login.html')
-    return render_template('index.html', current_user=user.to_dict())
+    return render_template('index.html', current_user=user.to_dict(), is_guest=False)
+
+
+# Anyone can look through the shared books; requesting one needs an account.
+GUEST_USER = {
+    'id': None,
+    'name': 'Guest',
+    'first_name': 'Guest',
+    'initials': 'G',
+    'email': '',
+    'phone': '',
+    'role': 'Guest',
+    'status': 'Active',
+    'university': '',
+    'completed_exchanges': 0,
+}
+
+
+@app.route('/browse')
+def browse_as_guest():
+    user = get_current_user()
+    if user:
+        return redirect('/#/browse')
+    return render_template('index.html', current_user=GUEST_USER, is_guest=True)
 
 
 @app.route('/login')
@@ -439,8 +568,8 @@ def api_register():
     if not name or not email or not password:
         return jsonify({'error': 'Full name, email address, and password are required.'}), 400
 
-    if '@' not in email or email.startswith('@') or email.endswith('@'):
-        return jsonify({'error': 'Please provide a valid email address.'}), 400
+    if not is_valid_email(email):
+        return jsonify({'error': INVALID_EMAIL_MESSAGE}), 400
 
     if role not in ('Student', 'Organization'):
         role = 'Student'
@@ -521,6 +650,9 @@ def api_login():
     if not email or not password:
         return jsonify({'error': 'Please enter both email and password.'}), 400
 
+    if not is_valid_email(email):
+        return jsonify({'error': INVALID_EMAIL_MESSAGE}), 400
+
     user = User.query.filter_by(email=email).first()
     if not user or not user.check_password(password):
         return jsonify({'error': 'Invalid email or password.'}), 401
@@ -577,8 +709,8 @@ def api_forgot_password():
     data = request.get_json(silent=True) or request.form.to_dict() or {}
     email = (data.get('email') or '').strip().lower()
 
-    if not email or '@' not in email:
-        return jsonify({'error': 'Please provide a valid email address.'}), 400
+    if not is_valid_email(email):
+        return jsonify({'error': INVALID_EMAIL_MESSAGE}), 400
 
     generic_success = (
         "If an account with that email exists, we have dispatched a password recovery link to your inbox. "
@@ -595,7 +727,7 @@ def api_forgot_password():
     print(f"[FORGOT PASSWORD] User found: '{user.name}' ({user.email}). Dispatching recovery email...", flush=True)
 
     # Generate cryptographically signed token with 15-minute lifecycle
-    token = reset_serializer.dumps(user.email, salt=PASSWORD_RESET_SALT)
+    token = make_reset_token(user)
 
     # Build full absolute reset link
     reset_url = url_for('reset_password_page', token=token, _external=True)
@@ -616,7 +748,7 @@ def reset_password_page(token):
     and presents the password reset modal or returns an error message.
     """
     try:
-        email = reset_serializer.loads(token, salt=PASSWORD_RESET_SALT, max_age=900)
+        user = read_reset_token(token)
     except SignatureExpired:
         return render_template(
             'login.html',
@@ -625,10 +757,9 @@ def reset_password_page(token):
     except BadSignature:
         return render_template(
             'login.html',
-            reset_error="Invalid or corrupted password reset link. Please request a new password reset."
+            reset_error="This password reset link has already been used or is invalid. Please request a new one."
         )
 
-    user = User.query.filter_by(email=email).first()
     if not user:
         return render_template(
             'login.html',
@@ -638,7 +769,7 @@ def reset_password_page(token):
     return render_template(
         'login.html',
         reset_token=token,
-        reset_email=email,
+        reset_email=user.email,
         reset_user_name=user.name
     )
 
@@ -657,17 +788,16 @@ def api_reset_password():
         return jsonify({'error': 'Reset token is required.'}), 400
 
     try:
-        email = reset_serializer.loads(token, salt=PASSWORD_RESET_SALT, max_age=900)
+        user = read_reset_token(token)
     except SignatureExpired:
         return jsonify({'error': 'This password reset link has expired (15-minute limit). Please request a new link.'}), 400
     except BadSignature:
-        return jsonify({'error': 'This password reset link is invalid or corrupted. Please request a new link.'}), 400
+        return jsonify({'error': 'This password reset link has already been used or is invalid. Please request a new link.'}), 400
 
     pw_error = validate_password_strength(new_password)
     if pw_error:
         return jsonify({'error': pw_error}), 400
 
-    user = User.query.filter_by(email=email).first()
     if not user:
         return jsonify({'error': 'No account was found for this reset token.'}), 404
 
@@ -702,8 +832,11 @@ def api_update_profile(current_user):
     if not name:
         return jsonify({'error': 'Full name cannot be empty.'}), 400
 
-    if not email or '@' not in email:
+    if not email:
         return jsonify({'error': 'Primary email address cannot be empty.'}), 400
+
+    if not is_valid_email(email):
+        return jsonify({'error': INVALID_EMAIL_MESSAGE}), 400
 
     phone_ok, phone_result = validate_nepali_phone(phone_raw)
     if not phone_ok:
@@ -793,7 +926,7 @@ def apply_resource_item_filters(query, current_user, enforce_org_donate: bool = 
             query = query.filter(ResourceItem.category.in_(categories))
 
     mine_only = request.args.get('mine_only', 'false').lower() == 'true'
-    if enforce_org_donate and current_user.normalized_role == 'Organization' and not mine_only:
+    if enforce_org_donate and current_user is not None and current_user.normalized_role == 'Organization' and not mine_only:
         query = query.filter(ResourceItem.exchange_type == 'Donate')
     else:
         exchange_param = (request.args.get('exchange_types') or '').strip()
@@ -816,7 +949,7 @@ def apply_resource_item_filters(query, current_user, enforce_org_donate: bool = 
 
 
 @app.route('/api/items', methods=['GET'])
-@api_login_required
+@api_optional_user
 def api_get_items(current_user):
     """
     Dynamically queries ResourceItems with multi-select filtering.
@@ -828,6 +961,8 @@ def api_get_items(current_user):
 
     mine_only = request.args.get('mine_only', 'false').lower() == 'true'
     if mine_only:
+        if not current_user:
+            return jsonify({'error': 'Authentication required. Please log in.'}), 401
         query = query.filter(ResourceItem.owner_id == current_user.id)
 
     query = apply_resource_item_filters(query, current_user, enforce_org_donate=True)
@@ -839,10 +974,10 @@ def api_get_items(current_user):
 
 
 @app.route('/api/items/<int:item_id>', methods=['GET'])
-@api_login_required
+@api_optional_user
 def api_get_single_item(current_user, item_id):
     item = db.session.get(ResourceItem, item_id)
-    if not item:
+    if not item or (item.is_hidden and not (current_user and (current_user.id == item.owner_id or current_user.normalized_role == 'Admin'))):
         return jsonify({'error': 'Resource item not found.'}), 404
     return jsonify({'item': item.to_dict()})
 
@@ -2536,9 +2671,9 @@ def seed_database():
                 condition='New / Like New',
                 exchange_type='Donate',
                 description='Hardcover illustrated edition used for Early Childhood Education literacy practicum. Available as a free donation for students or partner organizations.',
-                image_url='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/kids-front.svg',
+                front_cover_path='/static/img/books/kids-front.svg',
+                back_cover_path='/static/img/books/kids-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=first_owner.id
@@ -2666,9 +2801,9 @@ def seed_database():
                 condition='Good',
                 exchange_type='Lend',
                 description='Hardcover copy of the tenth edition of Operating System Concepts. Lightly used over one academic quarter.',
-                image_url='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/os-front.svg',
+                front_cover_path='/static/img/books/os-front.svg',
+                back_cover_path='/static/img/books/os-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=rishi.id
@@ -2681,9 +2816,9 @@ def seed_database():
                 condition='New / Like New',
                 exchange_type='Lend',
                 description='Pristine hardcover copy of CLRS 4th edition. Essential reference for Design and Analysis of Algorithms.',
-                image_url='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/algo-front.svg',
+                front_cover_path='/static/img/books/algo-front.svg',
+                back_cover_path='/static/img/books/algo-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=bijay.id
@@ -2696,9 +2831,9 @@ def seed_database():
                 condition='Good',
                 exchange_type='Donate',
                 description='Complete macro and microeconomics textbook. Happy to donate to any student or campus organization.',
-                image_url='https://images.unsplash.com/photo-1592496431122-2349e0fbc666?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1592496431122-2349e0fbc666?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/econ-front.svg',
+                front_cover_path='/static/img/books/econ-front.svg',
+                back_cover_path='/static/img/books/econ-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=ajay.id
@@ -2711,9 +2846,9 @@ def seed_database():
                 condition='Fair',
                 exchange_type='Donate',
                 description='Covers single and multivariable calculus. Minor shelf wear on corners, all pages intact.',
-                image_url='https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/calc-front.svg',
+                front_cover_path='/static/img/books/calc-front.svg',
+                back_cover_path='/static/img/books/calc-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=shibu.id
@@ -2726,9 +2861,9 @@ def seed_database():
                 condition='New / Like New',
                 exchange_type='Lend',
                 description='Complete portable USB oscilloscope, multimeter leads, and solderless breadboard jumper kit.',
-                image_url='https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/labkit-front.svg',
+                front_cover_path='/static/img/books/labkit-front.svg',
+                back_cover_path='/static/img/books/labkit-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=rajesh.id
@@ -2741,9 +2876,9 @@ def seed_database():
                 condition='Good',
                 exchange_type='Swap',
                 description='Includes both the 8th edition textbook and the 240-piece 3D organic stereochemistry molecular modeling kit.',
-                image_url='https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/chem-front.svg',
+                front_cover_path='/static/img/books/chem-front.svg',
+                back_cover_path='/static/img/books/chem-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=rajesh.id
@@ -2944,10 +3079,88 @@ def seed_org_broadcasts():
 
 
 
-with app.app_context():
-    db.create_all()
-    seed_database()
-    seed_org_broadcasts()
+# Demo listings first shipped with stock photos hot-linked from Unsplash, then with
+# bundled photos. They now use illustrated covers in public/static/img/books/*.svg.
+# Only listings that still show one of those stock pictures are touched, so photos
+# people uploaded themselves are never replaced.
+SEED_LISTING_PHOTOS = [
+    ('Operating System Concepts', 'os'),
+    ('Introduction to Algorithms', 'algo'),
+    ('Principles of Economics', 'econ'),
+    ('Calculus: Early Transcendentals', 'calc'),
+    ('Digital Oscilloscope', 'labkit'),
+    ('Organic Chemistry', 'chem'),
+    ('The Little Prince', 'kids'),
+]
+
+
+def refresh_seed_listing_photos():
+    changed = 0
+    for title_start, key in SEED_LISTING_PHOTOS:
+        items = ResourceItem.query.filter(ResourceItem.title.like(f'{title_start}%')).all()
+        for item in items:
+            front_now = item.front_cover_path or ''
+            # Unsplash photos (first version) or the bundled .jpg photos (second version)
+            if not (front_now.startswith('https://images.unsplash.com/') or front_now.startswith('/static/img/books/')):
+                continue
+            front = f'/static/img/books/{key}-front.svg'
+            back = f'/static/img/books/{key}-back.svg'
+            if front_now == front and item.back_cover_path == back:
+                continue
+            item.front_cover_path = front
+            item.image_url = front
+            back_now = item.back_cover_path or ''
+            if not back_now or back_now.startswith('https://images.unsplash.com/') or back_now.startswith('/static/img/books/'):
+                item.back_cover_path = back
+            changed += 1
+    if changed:
+        db.session.commit()
+    return changed
+
+
+def init_database():
+    """Create tables and seed demo data. Safe to run repeatedly."""
+    with app.app_context():
+        db.create_all()
+        seed_database()
+        seed_org_broadcasts()
+        refresh_seed_listing_photos()
+
+
+# On Vercel this runs once per deployment in the build step (init_db.py), not on every cold start.
+if not ON_VERCEL or os.environ.get('INIT_DB_ON_START') == '1':
+    init_database()
+
+
+@app.errorhandler(413)
+def payload_too_large(_err):
+    limit_mb = app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024)
+    return jsonify({'error': f'Upload too large. Keep photos under {limit_mb} MB in total.'}), 413
+
+
+@app.errorhandler(500)
+def internal_error(err):
+    db.session.rollback()
+    if request.path.startswith('/api/'):
+        original = getattr(err, 'original_exception', None)
+        message = str(original) if isinstance(original, RuntimeError) else 'Something went wrong on the server. Please try again.'
+        return jsonify({'error': message}), 500
+    return 'Something went wrong on the server. Please try again.', 500
+
+
+@app.route('/healthz')
+def healthz():
+    try:
+        db.session.execute(text('SELECT 1'))
+        database_ok = True
+    except Exception:
+        db.session.rollback()
+        database_ok = False
+    return jsonify({
+        'ok': database_ok,
+        'database': 'postgres' if not raw_db_url.startswith('sqlite') else 'sqlite',
+        'photo_storage': 'vercel-blob' if USE_BLOB_STORAGE else 'local-disk',
+    }), (200 if database_ok else 503)
 
 
 if __name__ == '__main__':

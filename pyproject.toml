@@ -1,0 +1,23 @@
+[project]
+name = "shareloop"
+version = "1.0.0"
+description = "ShareLoop: share, lend and donate textbooks"
+requires-python = ">=3.12"
+dependencies = [
+    "Flask==3.0.3",
+    "Flask-SQLAlchemy==3.1.1",
+    "Werkzeug==3.0.3",
+    "SQLAlchemy==2.0.31",
+    "python-dotenv==1.0.1",
+    "psycopg2-binary>=2.9.10",
+    "itsdangerous>=2.1.2",
+    "vercel-blob>=0.6.2",
+]
+
+[tool.vercel]
+entrypoint = "app:app"
+
+[tool.vercel.scripts]
+# Runs after dependencies install, before the deployment goes live:
+# creates tables and loads demo data in the Postgres database (idempotent).
+build = "python init_db.py"

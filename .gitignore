@@ -23,3 +23,15 @@ Thumbs.db
 # Local scripts
 run.bat
 
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel/
+
+# Local photo uploads (production uses Vercel Blob)
+public/static/uploads/*
+!public/static/uploads/.gitkeep

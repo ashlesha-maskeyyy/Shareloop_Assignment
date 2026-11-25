@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["sin1"],
+  "functions": {
+    "app.py": {
+      "maxDuration": 30,
+      "excludeFiles": "{public/**,.venv/**,venv/**,instance/**,*.db,tests/**}"
+    }
+  },
+  "headers": [
+    {
+      "source": "/static/(fonts|img|brand)/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }]
+    }
+  ]
+}

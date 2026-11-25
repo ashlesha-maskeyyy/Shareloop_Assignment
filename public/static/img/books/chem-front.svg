@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Organic Chemistry, front cover">
+  <rect width="800" height="600" fill="#E8E2F4"/>
+  <rect y="470" width="800" height="130" fill="#000" opacity="0.05"/>
+  <ellipse cx="410" cy="512" rx="180" ry="16" fill="#10151D" opacity="0.18"/>
+  <g transform="rotate(-3 400 300)">
+    <rect x="268" y="102" width="280" height="400" rx="8" fill="#F4F1EA"/>
+    <rect x="268" y="102" width="280" height="400" rx="8" fill="none" stroke="#DCD6C8" stroke-width="2"/>
+    <rect x="260" y="96" width="280" height="400" rx="8" fill="#5B3C8F"/>
+    <rect x="260" y="96" width="20" height="400" rx="6" fill="#3F2866"/>
+    <rect x="280" y="96" width="3" height="400" fill="#000" opacity="0.12"/>
+    <text x="302" y="154" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="28" font-weight="800" fill="#FFFFFF" letter-spacing="-0.5">Organic</text>
+    <text x="302" y="186" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="28" font-weight="800" fill="#FFFFFF" letter-spacing="-0.5">Chemistry</text>
+    <text x="302" y="224" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#FFFFFF" opacity="0.8">8th Ed. + Model Set</text>
+    <text x="302" y="468" font-family="'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#FFFFFF" opacity="0.85">Paula Yurkanis Bruice</text>
+    <g transform="translate(400 330)" stroke="#E5D9FF" stroke-width="5" fill="none" stroke-linejoin="round">
+      <path d="M0 -60 L52 -30 L52 30 L0 60 L-52 30 L-52 -30 Z"/>
+      <path d="M0 -40 L35 -20 M35 20 L0 40 M-35 20 L-35 -20" stroke-width="4"/>
+      <path d="M52 -30 L96 -56 M0 60 L0 104" stroke-linecap="round"/>
+      <circle cx="104" cy="-60" r="12" fill="#FF8A80" stroke="none"/><circle cx="0" cy="114" r="12" fill="#80D8FF" stroke="none"/>
+    </g>
+  </g>
+</svg>
