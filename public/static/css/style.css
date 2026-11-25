@@ -5140,8 +5140,8 @@ body.drawer-open {
 
 .lp-hero .lp-title {
   color: var(--ink);
-  font-size: clamp(2.4rem, 4.6vw, 4.4rem);
-  max-width: 10.5em;
+  font-size: clamp(2.3rem, 4.6vw, 4.4rem);
+  max-width: none;
   text-wrap: balance;
 }
 
@@ -5907,4 +5907,47 @@ textarea[aria-invalid="true"] {
   .supply-chip-name {
     max-width: 22ch;
   }
+}
+
+/* --------------------------------------------------------------------------
+   29. ACCOUNT SECURITY: forgot password
+   -------------------------------------------------------------------------- */
+.label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--pen);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link-btn:hover {
+  color: var(--pen-deep);
+}
+
+.forgot-card p {
+  color: var(--ink-2);
+  margin: 0 0 1rem;
+}
+
+.forgot-status {
+  margin: 0.9rem 0 0 !important;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--green) !important;
+}
+
+.forgot-status.is-error {
+  color: var(--danger) !important;
 }

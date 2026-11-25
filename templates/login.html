@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ShareLoop — Share books with ease</title>
+  <title>ShareLoop — Share student resources</title>
   <meta name="theme-color" content="#E8EFF5" />
   <link rel="icon" href="{{ url_for('static', filename='brand/favicon.ico') }}" sizes="any" />
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='brand/shareloop-app-icon.svg') }}" />
@@ -139,7 +139,7 @@
       <div class="lp-hero-veil"></div>
 
       <div class="lp-hero-content">
-        <h1 id="lp-title" class="lp-title" data-split>Share textbooks. Keep them moving.</h1>
+        <h1 id="lp-title" class="lp-title" data-split>Share student<br>resources.<br>Keep them moving.</h1>
         <p class="lp-sub lp-rise" style="--d: 6">Lend, swap or donate with students near you.</p>
         <div class="lp-cta lp-rise" style="--d: 7">
           <a class="lp-btn-light" href="/browse">Browse books <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
@@ -238,14 +238,14 @@
 
     <!-- Closing band -->
     <section class="lp-band">
-      <h2 class="reveal">Your old textbooks have another semester in them.</h2>
+      <h2 class="reveal">Your old books and study gear have another semester in them.</h2>
       <button type="button" class="lp-btn-light reveal" style="--d: 1" onclick="openAuth('register')">Create an account <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
     </section>
 
     <footer class="lp-footer">
       <span class="lp-footer-brand">
         <img src="{{ url_for('static', filename='brand/shareloop-logo.svg') }}" alt="ShareLoop" />
-        © 2026 ShareLoop University Exchange. Built with Python Flask and SQLAlchemy.
+        © 2026 ShareLoop Student Resources Exchange
       </span>
     </footer>
   </main>
@@ -978,12 +978,16 @@
 
     (function setUpLanding() {
       // Split the headline into words that rise one after another
+      // <br> in the heading marks where each line breaks
       document.querySelectorAll('[data-split]').forEach((el) => {
-        const words = el.textContent.trim().split(/\s+/);
-        el.setAttribute('aria-label', el.textContent.trim());
-        el.innerHTML = words
-          .map((w, i) => `<span class="w" aria-hidden="true"><span style="--i:${i}">${w}</span></span>`)
-          .join(' ');
+        const lines = el.innerHTML.split(/<br\s*\/?>/i).map((l) => l.replace(/<[^>]+>/g, '').trim()).filter(Boolean);
+        el.setAttribute('aria-label', lines.join(' '));
+        let i = 0;
+        el.innerHTML = lines
+          .map((line) => line.split(/\s+/)
+            .map((w) => `<span class="w" aria-hidden="true"><span style="--i:${i++}">${w}</span></span>`)
+            .join(' '))
+          .join('<br>');
       });
 
       const nav = document.getElementById('lp-nav');

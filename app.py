@@ -85,6 +85,30 @@ app.config['SESSION_COOKIE_SECURE'] = ON_VERCEL or os.environ.get('SESSION_COOKI
 PASSWORD_RESET_SALT = 'shareloop-password-reset-salt'
 reset_serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
+
+def password_fingerprint(user) -> str:
+    """Short hash of the stored password hash. Reset links carry it, so a link stops
+    working as soon as the password is changed (each link can be used once)."""
+    import hashlib
+    return hashlib.sha256((user.password_hash or '').encode()).hexdigest()[:16]
+
+
+def make_reset_token(user) -> str:
+    return reset_serializer.dumps({'e': user.email, 'p': password_fingerprint(user)}, salt=PASSWORD_RESET_SALT)
+
+
+def read_reset_token(token: str):
+    """Returns the User for a valid, unused reset link, or raises SignatureExpired /
+    BadSignature. Returns None if the account no longer exists."""
+    payload = reset_serializer.loads(token, salt=PASSWORD_RESET_SALT, max_age=900)
+    email = payload.get('e') if isinstance(payload, dict) else payload
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return None
+    if isinstance(payload, dict) and payload.get('p') != password_fingerprint(user):
+        raise BadSignature('This reset link has already been used.')
+    return user
+
 # ---------------------------------------------------------------------------
 # Dynamic Local File Upload Storage Configuration
 # ---------------------------------------------------------------------------
@@ -283,7 +307,7 @@ def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str
       </p>
     </div>
     <div class="footer">
-      &copy; 2026 ShareLoop University Exchange &bull; Safe Peer-to-Peer Campus Resource Sharing
+      &copy; 2026 ShareLoop Student Resources Exchange
     </div>
   </div>
 </body>
@@ -685,8 +709,8 @@ def api_forgot_password():
     data = request.get_json(silent=True) or request.form.to_dict() or {}
     email = (data.get('email') or '').strip().lower()
 
-    if not email or '@' not in email:
-        return jsonify({'error': 'Please provide a valid email address.'}), 400
+    if not is_valid_email(email):
+        return jsonify({'error': INVALID_EMAIL_MESSAGE}), 400
 
     generic_success = (
         "If an account with that email exists, we have dispatched a password recovery link to your inbox. "
@@ -703,7 +727,7 @@ def api_forgot_password():
     print(f"[FORGOT PASSWORD] User found: '{user.name}' ({user.email}). Dispatching recovery email...", flush=True)
 
     # Generate cryptographically signed token with 15-minute lifecycle
-    token = reset_serializer.dumps(user.email, salt=PASSWORD_RESET_SALT)
+    token = make_reset_token(user)
 
     # Build full absolute reset link
     reset_url = url_for('reset_password_page', token=token, _external=True)
@@ -724,7 +748,7 @@ def reset_password_page(token):
     and presents the password reset modal or returns an error message.
     """
     try:
-        email = reset_serializer.loads(token, salt=PASSWORD_RESET_SALT, max_age=900)
+        user = read_reset_token(token)
     except SignatureExpired:
         return render_template(
             'login.html',
@@ -733,10 +757,9 @@ def reset_password_page(token):
     except BadSignature:
         return render_template(
             'login.html',
-            reset_error="Invalid or corrupted password reset link. Please request a new password reset."
+            reset_error="This password reset link has already been used or is invalid. Please request a new one."
         )
 
-    user = User.query.filter_by(email=email).first()
     if not user:
         return render_template(
             'login.html',
@@ -746,7 +769,7 @@ def reset_password_page(token):
     return render_template(
         'login.html',
         reset_token=token,
-        reset_email=email,
+        reset_email=user.email,
         reset_user_name=user.name
     )
 
@@ -765,17 +788,16 @@ def api_reset_password():
         return jsonify({'error': 'Reset token is required.'}), 400
 
     try:
-        email = reset_serializer.loads(token, salt=PASSWORD_RESET_SALT, max_age=900)
+        user = read_reset_token(token)
     except SignatureExpired:
         return jsonify({'error': 'This password reset link has expired (15-minute limit). Please request a new link.'}), 400
     except BadSignature:
-        return jsonify({'error': 'This password reset link is invalid or corrupted. Please request a new link.'}), 400
+        return jsonify({'error': 'This password reset link has already been used or is invalid. Please request a new link.'}), 400
 
     pw_error = validate_password_strength(new_password)
     if pw_error:
         return jsonify({'error': pw_error}), 400
 
-    user = User.query.filter_by(email=email).first()
     if not user:
         return jsonify({'error': 'No account was found for this reset token.'}), 404
 

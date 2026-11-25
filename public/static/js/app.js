@@ -2029,9 +2029,53 @@ async function handleUpdateProfile(event) {
 
     currentUser = data.user;
     syncUserHeaderAndComposer();
+    const forgotEmail = document.getElementById('account-forgot-email');
+    if (forgotEmail) forgotEmail.textContent = currentUser.email || '';
     showToast(data.message || 'Personal details updated successfully.');
   } catch (err) {
     showToast(err.message, true);
+  }
+}
+
+// "Forgot password?" from Account Security: emails a one-time reset link
+function focusAccountReset() {
+  const card = document.getElementById('account-forgot-card');
+  const btn = document.getElementById('account-forgot-btn');
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (btn) setTimeout(() => btn.focus(), 350);
+}
+
+async function sendAccountResetLink() {
+  const btn = document.getElementById('account-forgot-btn');
+  const status = document.getElementById('account-forgot-status');
+  const email = currentUser && currentUser.email;
+  if (!email || !btn) return;
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  try {
+    const res = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not send the reset link. Please try again.');
+    if (status) {
+      status.hidden = false;
+      status.classList.remove('is-error');
+      status.textContent = `Sent. Check ${email} (and your spam folder) for the link.`;
+    }
+    btn.textContent = 'Send again';
+  } catch (err) {
+    if (status) {
+      status.hidden = false;
+      status.classList.add('is-error');
+      status.textContent = err.message;
+    }
+    btn.textContent = 'Email me a reset link';
+  } finally {
+    // Short pause so the button can't be hammered
+    setTimeout(() => { btn.disabled = false; }, 20000);
   }
 }
 
