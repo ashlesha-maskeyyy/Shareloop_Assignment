@@ -368,7 +368,7 @@
       <input
         type="search"
         id="global-search-input"
-        placeholder="Search books, lab gear, author, or course code (e.g. CS 140)..."
+        placeholder="Search books, notes, lab gear or course code (e.g. CS 140)..."
         oninput="handleSearchInput()"
       />
     </div>
@@ -543,7 +543,7 @@
       <div class="sidebar-footer">
         {% if is_guest %}
         <div class="campus-badge-card guest-card">
-          <strong>Want a book?</strong>
+          <strong>Need something?</strong>
           <span>Sign in to request, chat and share.</span>
           <a class="btn-light-sm" href="/?auth=register" onclick="return goToAuth('register')">Create account</a>
         </div>
@@ -885,9 +885,9 @@
             <h1 id="browse-heading">{% if current_user.role == 'Organization' %}Listings{% else %}Browse Exchange{% endif %}</h1>
             <p id="browse-subheading">
               {% if current_user.role == 'Organization' %}
-              Donated books you can request.
+              Donated resources you can request.
               {% else %}
-              Books and gear shared by students near you.
+              Books, notes and gear shared by students near you.
               {% endif %}
             </p>
           </div>
@@ -1245,7 +1245,7 @@
         <div class="page-header">
           <div>
             <h1>My Requests</h1>
-            <p>Books you've asked for.</p>
+            <p>Things you've asked for.</p>
           </div>
         </div>
         <div id="my-requests-container" class="stack-list"></div>
@@ -1259,7 +1259,7 @@
         <div class="page-header">
           <div>
             <h1>Incoming Requests</h1>
-            <p>People asking for your books.</p>
+            <p>People asking for what you've shared.</p>
           </div>
         </div>
         <div id="incoming-requests-container" class="stack-list"></div>
@@ -1291,7 +1291,7 @@
           <div class="page-header">
             <div>
               <h1>Needs Broadcasts</h1>
-              <p>{% if current_user.role == 'Organization' %}Drives from other organizations.{% else %}Book drives you can help with.{% endif %}</p>
+              <p>{% if current_user.role == 'Organization' %}Drives from other organizations.{% else %}Drives you can help with.{% endif %}</p>
             </div>
           </div>
           <div id="community-org-broadcasts-container" class="stack-list"></div>
@@ -1403,7 +1403,7 @@
                     <span class="status-dot dot-yellow"></span>
                     <div class="mode-card-text">
                       <strong>Seasonal Drive</strong>
-                      <small>Winter book drives, back-to-school kits &amp; drives</small>
+                      <small>Winter drives &amp; back-to-school kits</small>
                     </div>
                   </div>
                 </label>
@@ -1791,7 +1791,7 @@
           <div class="page-header" style="margin-bottom: 1.5rem; text-align: left;">
             <div>
               <h1 style="font-size: 1.55rem; font-weight: 800; color: var(--ink); margin: 0 0 4px 0; text-align: left;">My Contributions</h1>
-              <p style="font-size: 0.88rem; color: var(--ink-3); margin: 0; text-align: left;">Your pledges to book drives.</p>
+              <p style="font-size: 0.88rem; color: var(--ink-3); margin: 0; text-align: left;">Your pledges to drives.</p>
             </div>
           </div>
 
@@ -1809,7 +1809,7 @@
         <div class="page-header">
           <div>
             <h1>{% if current_user.role == 'Admin' %}Request Feed{% else %}Request Feed{% endif %}</h1>
-            <p>{% if current_user.role == 'Admin' %}Remove posts that break the rules.{% else %}Ask for a book, or help someone who needs one.{% endif %}</p>
+            <p>{% if current_user.role == 'Admin' %}Remove posts that break the rules.{% else %}Ask for what you need, or help someone else.{% endif %}</p>
           </div>
         </div>
 

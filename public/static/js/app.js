@@ -610,7 +610,7 @@ async function loadBrowseItems() {
       grid.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
           <h3>No matching resources found</h3>
-          <p>Try clearing some filters or searching for another textbook, course code, or lab item.</p>
+          <p>Try clearing some filters or searching for another title, course code or item.</p>
           <button type="button" class="btn-outline btn-sm" onclick="resetAllFilters()">Reset Filters</button>
         </div>
       `;
@@ -972,7 +972,7 @@ async function loadFeedWorkspace(isSilent = false) {
       container.innerHTML = `
         <div class="empty-state">
           <h3>No active campus requests right now</h3>
-          <p>${(currentUser && currentUser.role === 'Admin') ? 'There are currently no active student broadcast requests or community relief drives in the system.' : 'Click the status box above to broadcast a textbook, calculator, or lab item you need!'}</p>
+          <p>${(currentUser && currentUser.role === 'Admin') ? 'There are currently no active student broadcast requests or community relief drives in the system.' : 'Use the box above to ask for a book, calculator, lab item or anything else you need.'}</p>
         </div>
       `;
       return;

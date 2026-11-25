@@ -126,7 +126,7 @@
   </header>
 
   <main id="top">
-    <!-- Hero: students sharing books -->
+    <!-- Hero: students sharing resources -->
     <section class="lp-hero" aria-labelledby="lp-title">
       <div class="lp-hero-media">
         <img
@@ -142,16 +142,16 @@
         <h1 id="lp-title" class="lp-title" data-split>Share student<br>resources.<br>Keep them moving.</h1>
         <p class="lp-sub lp-rise" style="--d: 6">Lend, swap or donate with students near you.</p>
         <div class="lp-cta lp-rise" style="--d: 7">
-          <a class="lp-btn-light" href="/browse">Browse books <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          <a class="lp-btn-light" href="/browse">Browse resources <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
           <button type="button" class="lp-btn-ghost" onclick="openAuth('login')">Sign in</button>
         </div>
       </div>
 
       <!-- Floating glimpses of the product -->
       <div class="lp-float lp-float-a" aria-hidden="true">
-        <img class="lp-float-photo" src="{{ url_for('static', filename='img/books/calc-front.svg') }}" alt="" />
+        <img class="lp-float-photo" src="{{ url_for('static', filename='img/books/labkit-front.svg') }}" alt="" />
         <span class="lp-float-body">
-          <strong>Calculus, 8th Ed.</strong>
+          <strong>Breadboard lab kit</strong>
           <span class="pill">Lend</span>
         </span>
       </div>
@@ -202,7 +202,7 @@
         </div>
         <div class="lp-mode-tile swap">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l-3-3"></path><path d="M17 20V4l3 3"></path></svg>
-          <strong>Swap</strong><span>Book for book</span>
+          <strong>Swap</strong><span>Trade one for another</span>
         </div>
         <div class="lp-mode-tile donate">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"></path></svg>
@@ -219,18 +219,18 @@
         </figure>
         <div class="reveal" style="--d: 1">
           <h2>For students</h2>
-          <p>Get this semester's books from someone who's done with them.</p>
-          <a class="lp-btn-dark" href="/browse">Browse books <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          <p>Get this semester's books, notes and lab gear from someone who's done with them.</p>
+          <a class="lp-btn-dark" href="/browse">Browse resources <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
         </div>
       </div>
 
       <div class="lp-split flip" id="organizations">
         <figure class="lp-photo reveal">
-          <img data-parallax="0.08" src="{{ url_for('static', filename='img/book-drive.svg') }}" alt="Illustration: a student drops a book into a donation box at a book drive" loading="lazy" />
+          <img data-parallax="0.08" src="{{ url_for('static', filename='img/book-drive.svg') }}" alt="Illustration: a student drops a book into a donation box at a donation drive" loading="lazy" />
         </figure>
         <div class="reveal" style="--d: 1">
           <h2>For organizations</h2>
-          <p>Run book drives. Students pledge, you collect.</p>
+          <p>Run drives for books and school supplies. Students pledge, you collect.</p>
           <button type="button" class="lp-btn-dark" onclick="openAuth('register', 'Organization')">Register your organization <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
         </div>
       </div>
