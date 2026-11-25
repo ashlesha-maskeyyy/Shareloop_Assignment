@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='brand/shareloop-app-icon.svg') }}" />
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='brand/apple-touch-icon.png') }}" />
   <link rel="preload" href="{{ url_for('static', filename='fonts/plus-jakarta-sans-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=60" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=70" />
 </head>
 <body>
   <!-- Toast Notification -->
@@ -353,9 +353,11 @@
         <span class="brand-title">ShareLoop</span>
       </button>
 
+      {% if not is_guest %}
       <span id="topbar-role-badge" class="badge {% if current_user.role == 'Admin' %}badge-blue{% elif current_user.role == 'Organization' %}badge-amber{% else %}badge-green{% endif %}" style="margin-left: 12px;">
         {{ current_user.role or 'Student' }} Portal
       </span>
+      {% endif %}
     </div>
 
     <div id="topbar-search-container" class="topbar-search">
@@ -372,6 +374,10 @@
     </div>
 
     <div class="topbar-right">
+      {% if is_guest %}
+      <a class="btn-outline btn-sm" href="/?auth=login" onclick="return goToAuth('login')">Sign in</a>
+      <a class="btn-primary btn-sm" href="/?auth=register" onclick="return goToAuth('register')">Create account</a>
+      {% else %}
       <button type="button" class="user-pill" onclick="navigateTo('profile')">
         <span id="topbar-user-initials" class="avatar-circle">{{ current_user.initials }}</span>
         <span id="topbar-user-name" class="user-pill-name">{{ current_user.name }}</span>
@@ -380,6 +386,7 @@
       <button type="button" class="btn-outline btn-sm" onclick="requestLogoutConfirmation()">
         Logout
       </button>
+      {% endif %}
     </div>
   </header>
 
@@ -456,6 +463,12 @@
           </svg>
           <span>Needs Broadcasts</span>
         </button>
+        {% if current_user.role == 'Organization' %}
+        <button type="button" id="nav-org-my-broadcasts" class="nav-item" onclick="navigateTo('org-my-broadcasts')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"></path><path d="M9 21v-6h6v6"></path></svg>
+          <span>My Broadcasts</span>
+        </button>
+        {% endif %}
         {% endif %}
 
         {% if current_user.role == 'Student' %}
@@ -475,6 +488,7 @@
         </button>
         {% endif %}
 
+        {% if not is_guest %}
         <button type="button" id="nav-my-requests" class="nav-item" onclick="navigateTo('my-requests')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -491,6 +505,7 @@
           </svg>
           <span>My Contributions</span>
         </button>
+        {% endif %}
 
         {% if current_user.role == 'Student' %}
         <button type="button" id="nav-incoming" class="nav-item" onclick="navigateTo('incoming')">
@@ -503,6 +518,7 @@
         {% endif %}
         {% endif %}
 
+        {% if not is_guest %}
         <!-- Separated Profile & Security Sidebar Pages -->
         <div class="sidebar-section-divider">Account</div>
 
@@ -521,13 +537,22 @@
           </svg>
           <span>Account Security</span>
         </button>
+        {% endif %}
       </nav>
 
       <div class="sidebar-footer">
+        {% if is_guest %}
+        <div class="campus-badge-card guest-card">
+          <strong>Want a book?</strong>
+          <span>Sign in to request, chat and share.</span>
+          <a class="btn-light-sm" href="/?auth=register" onclick="return goToAuth('register')">Create account</a>
+        </div>
+        {% else %}
         <div class="campus-badge-card">
           <strong id="sidebar-role-title">{{ current_user.role or 'Student' }} Account</strong>
           <span id="sidebar-university">{{ current_user.university or '' }}</span>
         </div>
+        {% endif %}
       </div>
     </aside>
 
@@ -600,7 +625,7 @@
         <div class="page-header">
           <div>
             <h1>Resource Feed</h1>
-            <p>Toggle availability or remove inappropriate listings across the platform.</p>
+            <p>All listings on ShareLoop.</p>
           </div>
           <div style="display: flex; align-items: center; gap: 0.65rem;">
             <button
@@ -801,7 +826,7 @@
         <div class="page-header">
           <div>
             <h1>Active Accounts</h1>
-            <p>Directory of active Students and verified Organization accounts.</p>
+            <p>Students and verified organizations.</p>
           </div>
           <button type="button" class="btn-outline" onclick="loadAdminActiveAccounts()">
             Refresh Active Accounts
@@ -840,7 +865,7 @@
         <div class="page-header">
           <div>
             <h1>Account Approvals</h1>
-            <p>Approve pending organization registration.</p>
+            <p>Organizations waiting for approval.</p>
           </div>
           <button type="button" class="btn-outline" onclick="loadAdminPendingAccounts()">
             Refresh Approval Queue
@@ -860,9 +885,9 @@
             <h1 id="browse-heading">{% if current_user.role == 'Organization' %}Listings{% else %}Browse Exchange{% endif %}</h1>
             <p id="browse-subheading">
               {% if current_user.role == 'Organization' %}
-              Browse and request donated textbooks and study resources for your organization.
+              Donated books you can request.
               {% else %}
-              Discover textbooks, lab gear, and equipment shared by students on campus.
+              Books and gear shared by students near you.
               {% endif %}
             </p>
           </div>
@@ -1036,7 +1061,7 @@
         <div class="page-header">
           <div>
             <h1>My Listings</h1>
-            <p>Manage your listed textbooks, lab gear, and equipment.</p>
+            <p>Things you're sharing.</p>
           </div>
           <button type="button" id="my-listings-add-btn" class="btn-primary" onclick="openAddResourceView()">
             + Add Resource
@@ -1056,7 +1081,7 @@
         <div class="page-header">
           <div>
             <h1 id="resource-form-title">Add a Study Resource</h1>
-            <p>Upload the photos and fill out the details below to list your item on portal.</p>
+            <p>Add photos and a few details.</p>
           </div>
         </div>
 
@@ -1220,7 +1245,7 @@
         <div class="page-header">
           <div>
             <h1>My Requests</h1>
-            <p>Track the status of textbooks and resources you have requested.</p>
+            <p>Books you've asked for.</p>
           </div>
         </div>
         <div id="my-requests-container" class="stack-list"></div>
@@ -1234,7 +1259,7 @@
         <div class="page-header">
           <div>
             <h1>Incoming Requests</h1>
-            <p>Review, accept, or decline requests from peers for your listed resources.</p>
+            <p>People asking for your books.</p>
           </div>
         </div>
         <div id="incoming-requests-container" class="stack-list"></div>
@@ -1263,18 +1288,28 @@
       {% if current_user.role in ['Organization', 'Admin'] %}
       <section id="view-org-broadcasts" class="view-section hidden">
         <div class="org-broadcasts-workspace">
-          <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+          <div class="page-header">
             <div>
-              <h1>Organization Needs Broadcasts</h1>
-              <p>Broadcast community emergency relief needs or ongoing project drives directly to university students on campus.</p>
+              <h1>Needs Broadcasts</h1>
+              <p>{% if current_user.role == 'Organization' %}Drives from other organizations.{% else %}Book drives you can help with.{% endif %}</p>
+            </div>
+          </div>
+          <div id="community-org-broadcasts-container" class="stack-list"></div>
+        </div>
+      </section>
+
+      {% if current_user.role in ['Organization', 'Admin'] %}
+      <section id="view-org-my-broadcasts" class="view-section hidden">
+        <div class="org-broadcasts-workspace">
+          <div class="page-header">
+            <div>
+              <h1>My Broadcasts</h1>
+              <p>Drives your organization is running.</p>
             </div>
             {% if current_user.role == 'Organization' %}
-            <button type="button" class="btn-primary" onclick="openOrgBroadcastModal()" style="display: flex; align-items: center; gap: 6px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              Create Needs Broadcast
+            <button type="button" class="btn-primary" onclick="openOrgBroadcastModal()" style="display: inline-flex; align-items: center; gap: 6px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              New broadcast
             </button>
             {% endif %}
           </div>
@@ -1282,82 +1317,38 @@
           <!-- Metric KPI Cards for Organizations (Responsive 4-column Grid) -->
           <div class="org-kpi-grid">
             <div class="kpi-card">
-              <span class="kpi-label">Active Relief Drives</span>
+              <span class="kpi-label">Active drives</span>
               <div id="org-kpi-active-count" class="kpi-value">0</div>
-              <span class="kpi-subtext">Published community broadcasts</span>
+              
             </div>
             <div class="kpi-card">
-              <span class="kpi-label">Total Items Secured</span>
+              <span class="kpi-label">Items received</span>
               <div id="org-kpi-secured-count" class="kpi-value" style="color: var(--green);">0</div>
-              <span class="kpi-subtext">Pledged &amp; donated by students</span>
+              
             </div>
             <div class="kpi-card">
-              <span class="kpi-label">Items Still Needed</span>
+              <span class="kpi-label">Still needed</span>
               <div id="org-kpi-needed-count" class="kpi-value" style="color: var(--danger);">0</div>
-              <span class="kpi-subtext">Across active relief drives</span>
+              
             </div>
             <div class="kpi-card">
-              <span class="kpi-label">Overall Fulfillment</span>
+              <span class="kpi-label">Progress</span>
               <div id="org-kpi-fulfillment-rate" class="kpi-value" style="color: var(--pen);">0%</div>
-              <span class="kpi-subtext">Average progress to goal</span>
+              
             </div>
           </div>
 
-          <!-- Filter / Tab Navigation & Refresh -->
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
-            <div class="org-tabs-bar">
-              <button type="button" class="org-tab-btn active" id="tab-all-broadcasts" onclick="switchOrgBroadcastTab('all')">
-                All Drives <span id="badge-all-count" class="tab-badge">0</span>
-              </button>
-              <button type="button" class="org-tab-btn" id="tab-my-broadcasts" onclick="switchOrgBroadcastTab('my')">
-                My Broadcasts <span id="badge-my-count" class="tab-badge">0</span>
-              </button>
-              <button type="button" class="org-tab-btn" id="tab-community-broadcasts" onclick="switchOrgBroadcastTab('community')">
-                Community Broadcasts <span id="badge-community-count" class="tab-badge">0</span>
-              </button>
-            </div>
-            <button type="button" class="btn-outline btn-sm" onclick="loadOrgBroadcasts()" style="display: inline-flex; align-items: center; gap: 5px;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-              Refresh Broadcasts
-            </button>
-          </div>
-
-          <!-- Section 1: My Organization Broadcasts -->
-          <div id="section-my-org-broadcasts" class="org-section-wrapper" style="margin-bottom: 2.25rem;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid var(--line); padding-bottom: 0.65rem;">
-              <div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--ink); margin: 0;">My Organization Broadcasts</h2>
-                  <span id="my-broadcasts-count-tag" style="background: var(--pen-wash); color: var(--pen-deep); font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600;">0 active</span>
-                </div>
-                <p style="font-size: 0.82rem; color: var(--ink-3); margin: 4px 0 0 0;">Relief needs broadcasts created and managed by your organization. You have full management controls to record incoming supplies, toggle drive status, or delete.</p>
-              </div>
-            </div>
-            <div id="my-org-broadcasts-container" class="stack-list"></div>
-          </div>
-
-          <!-- Section 2: Community & Partner Broadcasts -->
-          <div id="section-community-org-broadcasts" class="org-section-wrapper">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid var(--line); padding-bottom: 0.65rem;">
-              <div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--ink); margin: 0;">Community &amp; Partner Broadcasts</h2>
-                  <span id="community-broadcasts-count-tag" style="background: var(--line); color: var(--ink-2); font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600;">0 partner drives</span>
-                </div>
-                <p style="font-size: 0.82rem; color: var(--ink-3); margin: 4px 0 0 0;">Active relief drives published by other campus organizations. Support their initiatives by pledging extra books, materials, and supplies.</p>
-              </div>
-            </div>
-            <div id="community-org-broadcasts-container" class="stack-list"></div>
-          </div>
+          <div id="my-org-broadcasts-container" class="stack-list"></div>
         </div>
       </section>
+      {% endif %}
 
       <!-- ================================================================ -->
       <!-- VIEW 8B: CREATE NEEDS BROADCAST (Spacious Dedicated Full Page)   -->
       <!-- ================================================================ -->
       <section id="view-org-create-broadcast" class="view-section hidden">
         <div class="org-create-workspace">
-          <button type="button" class="back-link" onclick="navigateTo('org-broadcasts')" style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 600; color: var(--ink-2); background: none; border: none; cursor: pointer; padding: 0;">
+          <button type="button" class="back-link" onclick="navigateTo(myBroadcastsView())" style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 600; color: var(--ink-2); background: none; border: none; cursor: pointer; padding: 0;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
@@ -1368,7 +1359,7 @@
           <div class="page-header" style="margin-bottom: 1.75rem;">
             <div>
               <h1 id="org-broadcast-page-title" style="font-size: 1.55rem; font-weight: 800; color: var(--ink); margin: 0 0 4px 0;">Create Needs Broadcast</h1>
-              <p id="org-broadcast-page-subtitle" style="font-size: 0.88rem; color: var(--ink-3); margin: 0;">Broadcast emergency community relief needs or ongoing project drives directly to university students on campus.</p>
+              <p id="org-broadcast-page-subtitle" style="font-size: 0.88rem; color: var(--ink-3); margin: 0;">Tell students what your drive needs.</p>
             </div>
           </div>
 
@@ -1608,7 +1599,7 @@
             <div class="create-broadcast-actions-bar">
               <span style="font-size: 0.84rem; color: var(--ink-3);">Ready to publish? Your broadcast will be immediately visible to all campus students.</span>
               <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <button type="button" class="btn-outline" onclick="navigateTo('org-broadcasts')">
+                <button type="button" class="btn-outline" onclick="navigateTo(myBroadcastsView())">
                   Cancel
                 </button>
                 <button type="submit" id="org-broadcast-submit-btn" class="btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
@@ -1638,7 +1629,7 @@
           <div class="page-header" style="margin-bottom: 1.5rem; text-align: left;">
             <div>
               <h1 id="record-page-title" style="font-size: 1.55rem; font-weight: 800; color: var(--ink); margin: 0 0 4px 0; text-align: left;">Record Received Supplies</h1>
-              <p id="record-page-subtitle" style="font-size: 0.88rem; color: var(--ink-3); margin: 0; text-align: left;">Enter quantities for any supplies physically received for this drive and save once.</p>
+              <p id="record-page-subtitle" style="font-size: 0.88rem; color: var(--ink-3); margin: 0; text-align: left;">Enter what you received for this drive.</p>
             </div>
           </div>
 
@@ -1730,7 +1721,7 @@
           <div class="page-header" style="margin-bottom: 1.25rem; text-align: left;">
             <div>
               <h1 id="records-ledger-title" style="font-size: 1.55rem; font-weight: 800; color: var(--ink); margin: 0 0 4px 0; text-align: left;">Incoming Pledges &amp; Contribution Records</h1>
-              <p style="font-size: 0.88rem; color: var(--ink-3); margin: 0; text-align: left;">Audit trail of all community pledges, physical verifications, and offline receipts for this broadcast.</p>
+              <p style="font-size: 0.88rem; color: var(--ink-3); margin: 0; text-align: left;">Every pledge and drop-off for this drive.</p>
             </div>
           </div>
 
@@ -1799,8 +1790,8 @@
         <div class="org-create-workspace" style="max-width: 960px; margin: 0 auto; text-align: left;">
           <div class="page-header" style="margin-bottom: 1.5rem; text-align: left;">
             <div>
-              <h1 style="font-size: 1.55rem; font-weight: 800; color: var(--ink); margin: 0 0 4px 0; text-align: left;">My Relief Contributions &amp; Pledges</h1>
-              <p style="font-size: 0.88rem; color: var(--ink-3); margin: 0; text-align: left;">Track physical drop-off locations, verification status, and reference codes for all supplies you've pledged.</p>
+              <h1 style="font-size: 1.55rem; font-weight: 800; color: var(--ink); margin: 0 0 4px 0; text-align: left;">My Contributions</h1>
+              <p style="font-size: 0.88rem; color: var(--ink-3); margin: 0; text-align: left;">Your pledges to book drives.</p>
             </div>
           </div>
 
@@ -1817,11 +1808,12 @@
       <section id="view-feed" class="view-section hidden">
         <div class="page-header">
           <div>
-            <h1>{% if current_user.role == 'Admin' %}Request Feed Moderation{% else %}Student Request Feed{% endif %}</h1>
-            <p>{% if current_user.role == 'Admin' %}Overview of all active campus broadcast requests with administrative deletion controls.{% else %}Broadcast textbooks, lab gear, or equipment you need — or help a peer by uploading direct proof photos from your device.{% endif %}</p>
+            <h1>{% if current_user.role == 'Admin' %}Request Feed{% else %}Request Feed{% endif %}</h1>
+            <p>{% if current_user.role == 'Admin' %}Remove posts that break the rules.{% else %}Ask for a book, or help someone who needs one.{% endif %}</p>
           </div>
         </div>
 
+        <div class="feed-layout">
         <div class="feed-central-container">
           <!-- Centralized Social-Media Style Status Composer Card (Students Only) -->
           {% if current_user.role == 'Student' %}
@@ -1843,17 +1835,16 @@
           <div class="feed-stream-column">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
               <div>
-                <h2 style="font-size: 1.1rem; font-weight: 700; color: var(--ink);">Active Campus Requests</h2>
-                <p style="font-size: 0.82rem; color: var(--ink-3);">
-                  {% if current_user.role == 'Admin' %}Review current requests and delete any inappropriate or completed posts.{% else %}Click "I Have This" to upload device proof photos and start a pickup chat.{% endif %}
-                </p>
+                <h2 style="font-size: 1.1rem; font-weight: 700; color: var(--ink);">Active campus requests</h2>
               </div>
               <button type="button" class="btn-outline btn-sm" onclick="loadFeedWorkspace()">
-                Refresh Feed
+                Refresh
               </button>
             </div>
             <div id="feed-stream-container" class="stack-list"></div>
           </div>
+        </div>
+          <aside id="feed-aside" class="feed-aside" aria-label="Feed summary"></aside>
         </div>
       </section>
       {% endif %}
@@ -1880,7 +1871,7 @@
         <div class="page-header">
           <div>
             <h1>Personal Details</h1>
-            <p>Manage your Full Name, Primary Email Address, Nepali Phone Number, and Campus/Organization Affiliation.</p>
+            <p>Your name, email, phone and campus.</p>
           </div>
           <div class="profile-subnav-tabs">
             <button type="button" class="btn-primary btn-sm" onclick="navigateTo('profile')">
@@ -1913,12 +1904,11 @@
                 required
                 maxlength="17"
                 value="{{ current_user.phone }}"
-                placeholder="(+977) 9848262163"
+                inputmode="numeric"
+                placeholder="98XXXXXXXX"
                 oninput="enforceDashboardNepaliPhone(this)"
               />
-              <small style="display: block; margin-top: 4px; font-size: 0.75rem; color: var(--ink-3);">
-                Optional (+977) prefix followed by 10 digits (e.g. (+977) 9848262163).
-              </small>
+              <small style="display: block; margin-top: 4px; font-size: 0.75rem; color: var(--ink-3);">10 digits, e.g. 9848262163</small>
             </div>
 
             <div class="form-group">
@@ -1943,7 +1933,7 @@
         <div class="page-header">
           <div>
             <h1>Account Security</h1>
-            <p>Update your account password or permanently delete your ShareLoop account.</p>
+            <p>Password and account.</p>
           </div>
           <div class="profile-subnav-tabs">
             <button type="button" class="btn-outline btn-sm" onclick="navigateTo('profile')">
@@ -1992,7 +1982,8 @@
   <script>
     window.SHARELOOP_INITIAL_USER = {{ current_user | tojson | safe }};
   </script>
-  <script src="{{ url_for('static', filename='js/app.js') }}?v=61"></script>
+  <script src="{{ url_for('static', filename='js/field-checks.js') }}?v=70"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}?v=70"></script>
   <script>
     // Dashboard numbers count up when they appear (skipped for reduced motion)
     (function () {

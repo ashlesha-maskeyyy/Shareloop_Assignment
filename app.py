@@ -310,6 +310,13 @@ def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str
 
 
 NEPALI_PHONE_REGEX = re.compile(r'^(?:\(\+977\)\s*|\+977[\s\-]?)?([0-9]{10})$')
+# name@domain.tld: letters, digits and . _ % + - before the @, a real domain with a 2+ letter ending after it
+EMAIL_REGEX = re.compile(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$')
+INVALID_EMAIL_MESSAGE = 'Enter a valid email address, like name@gmail.com.'
+
+
+def is_valid_email(email: str) -> bool:
+    return bool(email) and len(email) <= 254 and bool(EMAIL_REGEX.match(email))
 
 
 def validate_nepali_phone(phone_raw: str) -> tuple[bool, str]:
@@ -327,7 +334,7 @@ def validate_nepali_phone(phone_raw: str) -> tuple[bool, str]:
     if not match:
         return (
             False,
-            'Invalid phone number. Please enter exactly 10 digits with optional (+977) prefix (e.g. (+977) 9848262163).'
+            'Enter a 10-digit phone number, like 9848262163.'
         )
 
     ten_digits = match.group(1)
@@ -407,6 +414,14 @@ def api_login_required(f):
     return decorated
 
 
+def api_optional_user(f):
+    """Passes the signed-in user, or None for visitors who are just browsing."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        return f(get_current_user(), *args, **kwargs)
+    return decorated
+
+
 def api_admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -469,7 +484,30 @@ def index():
     user = get_current_user()
     if not user:
         return render_template('login.html')
-    return render_template('index.html', current_user=user.to_dict())
+    return render_template('index.html', current_user=user.to_dict(), is_guest=False)
+
+
+# Anyone can look through the shared books; requesting one needs an account.
+GUEST_USER = {
+    'id': None,
+    'name': 'Guest',
+    'first_name': 'Guest',
+    'initials': 'G',
+    'email': '',
+    'phone': '',
+    'role': 'Guest',
+    'status': 'Active',
+    'university': '',
+    'completed_exchanges': 0,
+}
+
+
+@app.route('/browse')
+def browse_as_guest():
+    user = get_current_user()
+    if user:
+        return redirect('/#/browse')
+    return render_template('index.html', current_user=GUEST_USER, is_guest=True)
 
 
 @app.route('/login')
@@ -506,8 +544,8 @@ def api_register():
     if not name or not email or not password:
         return jsonify({'error': 'Full name, email address, and password are required.'}), 400
 
-    if '@' not in email or email.startswith('@') or email.endswith('@'):
-        return jsonify({'error': 'Please provide a valid email address.'}), 400
+    if not is_valid_email(email):
+        return jsonify({'error': INVALID_EMAIL_MESSAGE}), 400
 
     if role not in ('Student', 'Organization'):
         role = 'Student'
@@ -587,6 +625,9 @@ def api_login():
 
     if not email or not password:
         return jsonify({'error': 'Please enter both email and password.'}), 400
+
+    if not is_valid_email(email):
+        return jsonify({'error': INVALID_EMAIL_MESSAGE}), 400
 
     user = User.query.filter_by(email=email).first()
     if not user or not user.check_password(password):
@@ -769,8 +810,11 @@ def api_update_profile(current_user):
     if not name:
         return jsonify({'error': 'Full name cannot be empty.'}), 400
 
-    if not email or '@' not in email:
+    if not email:
         return jsonify({'error': 'Primary email address cannot be empty.'}), 400
+
+    if not is_valid_email(email):
+        return jsonify({'error': INVALID_EMAIL_MESSAGE}), 400
 
     phone_ok, phone_result = validate_nepali_phone(phone_raw)
     if not phone_ok:
@@ -860,7 +904,7 @@ def apply_resource_item_filters(query, current_user, enforce_org_donate: bool = 
             query = query.filter(ResourceItem.category.in_(categories))
 
     mine_only = request.args.get('mine_only', 'false').lower() == 'true'
-    if enforce_org_donate and current_user.normalized_role == 'Organization' and not mine_only:
+    if enforce_org_donate and current_user is not None and current_user.normalized_role == 'Organization' and not mine_only:
         query = query.filter(ResourceItem.exchange_type == 'Donate')
     else:
         exchange_param = (request.args.get('exchange_types') or '').strip()
@@ -883,7 +927,7 @@ def apply_resource_item_filters(query, current_user, enforce_org_donate: bool = 
 
 
 @app.route('/api/items', methods=['GET'])
-@api_login_required
+@api_optional_user
 def api_get_items(current_user):
     """
     Dynamically queries ResourceItems with multi-select filtering.
@@ -895,6 +939,8 @@ def api_get_items(current_user):
 
     mine_only = request.args.get('mine_only', 'false').lower() == 'true'
     if mine_only:
+        if not current_user:
+            return jsonify({'error': 'Authentication required. Please log in.'}), 401
         query = query.filter(ResourceItem.owner_id == current_user.id)
 
     query = apply_resource_item_filters(query, current_user, enforce_org_donate=True)
@@ -906,10 +952,10 @@ def api_get_items(current_user):
 
 
 @app.route('/api/items/<int:item_id>', methods=['GET'])
-@api_login_required
+@api_optional_user
 def api_get_single_item(current_user, item_id):
     item = db.session.get(ResourceItem, item_id)
-    if not item:
+    if not item or (item.is_hidden and not (current_user and (current_user.id == item.owner_id or current_user.normalized_role == 'Admin'))):
         return jsonify({'error': 'Resource item not found.'}), 404
     return jsonify({'item': item.to_dict()})
 
@@ -2603,9 +2649,9 @@ def seed_database():
                 condition='New / Like New',
                 exchange_type='Donate',
                 description='Hardcover illustrated edition used for Early Childhood Education literacy practicum. Available as a free donation for students or partner organizations.',
-                image_url='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/kids-front.jpg',
+                front_cover_path='/static/img/books/kids-front.jpg',
+                back_cover_path='/static/img/books/kids-back.jpg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=first_owner.id
@@ -2733,9 +2779,9 @@ def seed_database():
                 condition='Good',
                 exchange_type='Lend',
                 description='Hardcover copy of the tenth edition of Operating System Concepts. Lightly used over one academic quarter.',
-                image_url='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/os-front.jpg',
+                front_cover_path='/static/img/books/os-front.jpg',
+                back_cover_path='/static/img/books/os-back.jpg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=rishi.id
@@ -2748,9 +2794,9 @@ def seed_database():
                 condition='New / Like New',
                 exchange_type='Lend',
                 description='Pristine hardcover copy of CLRS 4th edition. Essential reference for Design and Analysis of Algorithms.',
-                image_url='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/algo-front.jpg',
+                front_cover_path='/static/img/books/algo-front.jpg',
+                back_cover_path='/static/img/books/algo-back.jpg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=bijay.id
@@ -2763,9 +2809,9 @@ def seed_database():
                 condition='Good',
                 exchange_type='Donate',
                 description='Complete macro and microeconomics textbook. Happy to donate to any student or campus organization.',
-                image_url='https://images.unsplash.com/photo-1592496431122-2349e0fbc666?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1592496431122-2349e0fbc666?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/econ-front.jpg',
+                front_cover_path='/static/img/books/econ-front.jpg',
+                back_cover_path='/static/img/books/econ-back.jpg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=ajay.id
@@ -2778,9 +2824,9 @@ def seed_database():
                 condition='Fair',
                 exchange_type='Donate',
                 description='Covers single and multivariable calculus. Minor shelf wear on corners, all pages intact.',
-                image_url='https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/calc-front.jpg',
+                front_cover_path='/static/img/books/calc-front.jpg',
+                back_cover_path='/static/img/books/calc-back.jpg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=shibu.id
@@ -2793,9 +2839,9 @@ def seed_database():
                 condition='New / Like New',
                 exchange_type='Lend',
                 description='Complete portable USB oscilloscope, multimeter leads, and solderless breadboard jumper kit.',
-                image_url='https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/labkit-front.jpg',
+                front_cover_path='/static/img/books/labkit-front.jpg',
+                back_cover_path='/static/img/books/labkit-back.jpg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=rajesh.id
@@ -2808,9 +2854,9 @@ def seed_database():
                 condition='Good',
                 exchange_type='Swap',
                 description='Includes both the 8th edition textbook and the 240-piece 3D organic stereochemistry molecular modeling kit.',
-                image_url='https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=600&q=80',
-                front_cover_path='https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=600&q=80',
-                back_cover_path='https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=600&q=80',
+                image_url='/static/img/books/chem-front.jpg',
+                front_cover_path='/static/img/books/chem-front.jpg',
+                back_cover_path='/static/img/books/chem-back.jpg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=rajesh.id
@@ -3011,12 +3057,46 @@ def seed_org_broadcasts():
 
 
 
+# Demo listings first shipped with generic stock photos hot-linked from Unsplash.
+# They now use photos that match each item, stored in public/static/img/books/.
+# Only listings that still have an Unsplash photo are touched, so photos people
+# uploaded themselves are never replaced.
+SEED_LISTING_PHOTOS = [
+    ('Operating System Concepts', 'os'),
+    ('Introduction to Algorithms', 'algo'),
+    ('Principles of Economics', 'econ'),
+    ('Calculus: Early Transcendentals', 'calc'),
+    ('Digital Oscilloscope', 'labkit'),
+    ('Organic Chemistry', 'chem'),
+    ('The Little Prince', 'kids'),
+]
+
+
+def refresh_seed_listing_photos():
+    changed = 0
+    for title_start, key in SEED_LISTING_PHOTOS:
+        items = ResourceItem.query.filter(ResourceItem.title.like(f'{title_start}%')).all()
+        for item in items:
+            if not (item.front_cover_path or '').startswith('https://images.unsplash.com/'):
+                continue
+            front = f'/static/img/books/{key}-front.jpg'
+            item.front_cover_path = front
+            item.image_url = front
+            if not item.back_cover_path or item.back_cover_path.startswith('https://images.unsplash.com/'):
+                item.back_cover_path = f'/static/img/books/{key}-back.jpg'
+            changed += 1
+    if changed:
+        db.session.commit()
+    return changed
+
+
 def init_database():
     """Create tables and seed demo data. Safe to run repeatedly."""
     with app.app_context():
         db.create_all()
         seed_database()
         seed_org_broadcasts()
+        refresh_seed_listing_photos()
 
 
 # On Vercel this runs once per deployment in the build step (init_db.py), not on every cold start.

@@ -9,8 +9,8 @@
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='brand/shareloop-app-icon.svg') }}" />
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='brand/apple-touch-icon.png') }}" />
   <link rel="preload" href="{{ url_for('static', filename='fonts/plus-jakarta-sans-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" as="image" href="{{ url_for('static', filename='img/hero-valley.jpg') }}" imagesrcset="{{ url_for('static', filename='img/hero-valley-sm.jpg') }} 1100w, {{ url_for('static', filename='img/hero-valley.jpg') }} 2200w" imagesizes="100vw" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=60" />
+  <link rel="preload" as="image" href="{{ url_for('static', filename='img/hero-share.jpg') }}" imagesrcset="{{ url_for('static', filename='img/hero-share-sm.jpg') }} 1100w, {{ url_for('static', filename='img/hero-share.jpg') }} 2200w" imagesizes="100vw" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=70" />
 </head>
 <body class="auth-body">
   <!-- Animated Overlay Validation Modal (Success Checkmark / Rejection Alert) -->
@@ -120,124 +120,124 @@
       <a href="#how">How it works</a>
       <a href="#students">Students</a>
       <a href="#organizations">Organizations</a>
+      <a href="/browse">Browse</a>
     </nav>
     <button type="button" class="lp-login" onclick="openAuth('login')">Sign in</button>
   </header>
 
   <main id="top">
-    <!-- Hero: the Pokhara valley -->
+    <!-- Hero: students sharing books -->
     <section class="lp-hero" aria-labelledby="lp-title">
       <div class="lp-hero-media">
         <img
           id="lp-hero-img"
-          src="{{ url_for('static', filename='img/hero-valley.jpg') }}"
-          srcset="{{ url_for('static', filename='img/hero-valley-sm.jpg') }} 1100w, {{ url_for('static', filename='img/hero-valley.jpg') }} 2200w"
+          src="{{ url_for('static', filename='img/hero-share.jpg') }}"
+          srcset="{{ url_for('static', filename='img/hero-share-sm.jpg') }} 1100w, {{ url_for('static', filename='img/hero-share.jpg') }} 2200w"
           sizes="100vw"
-          alt="Terraced fields and villages below the snow-capped Annapurna range near Pokhara"
+          alt="Students in school uniforms laughing together over a shared book at a table"
           fetchpriority="high"
         />
       </div>
       <div class="lp-hero-veil"></div>
 
       <div class="lp-hero-content">
-        <span class="lp-chip lp-rise" style="--d: 0"><b>New</b> Relief drives for schools</span>
-        <h1 id="lp-title" class="lp-title" data-split>Share books with ease.</h1>
-        <p class="lp-sub lp-rise" style="--d: 6">
-          Lend, swap and donate textbooks, lab gear and study kits with students on your campus. Free, nearby and verified.
-        </p>
+        <h1 id="lp-title" class="lp-title" data-split>Share textbooks. Keep them moving.</h1>
+        <p class="lp-sub lp-rise" style="--d: 6">Lend, swap or donate with students near you.</p>
         <div class="lp-cta lp-rise" style="--d: 7">
-          <button type="button" class="lp-btn-light" onclick="openAuth('register')">Get started <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
-          <button type="button" class="lp-btn-ghost" onclick="openAuth('login')">I have an account</button>
+          <a class="lp-btn-light" href="/browse">Browse books <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          <button type="button" class="lp-btn-ghost" onclick="openAuth('login')">Sign in</button>
         </div>
       </div>
 
+      <!-- Floating glimpses of the product -->
       <div class="lp-float lp-float-a" aria-hidden="true">
-        <span class="lp-float-thumb"></span>
+        <img class="lp-float-photo" src="{{ url_for('static', filename='img/books/calc-front.jpg') }}" alt="" />
         <span class="lp-float-body">
-          <strong>Calculus: Early Transcendentals</strong>
-          <small>Shared by a student at Tribhuvan University</small>
+          <strong>Calculus, 8th Ed.</strong>
           <span class="pill">Lend</span>
         </span>
       </div>
       <div class="lp-float lp-float-b" aria-hidden="true">
-        <span class="lp-float-body">
-          <strong>Post-flood school recovery drive</strong>
-          <small>221 of 380 supplies secured</small>
-          <span class="lp-float-bar"><i></i></span>
+        <span class="lp-hand">
+          <span class="lp-avatar">AS</span>
+          <span class="lp-hand-book"></span>
+          <span class="lp-avatar alt">RK</span>
         </span>
+        <span class="lp-float-body">
+          <strong>Handed over</strong>
+          <small>Library, 3:00 PM</small>
+        </span>
+        <span class="lp-tick"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+      </div>
+      <div class="lp-float lp-float-c" aria-hidden="true">
+        <img class="lp-loop-mark" src="{{ url_for('static', filename='brand/shareloop-mark-white.svg') }}" alt="" />
+        <span class="lp-modes"><i class="m-lend">Lend</i><i class="m-swap">Swap</i><i class="m-donate">Donate</i></span>
       </div>
 
-      <a href="#how" class="lp-scroll">Scroll
+      <a href="#how" class="lp-scroll" aria-label="Scroll to how it works">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
       </a>
     </section>
 
-    <!-- How it works -->
+    <!-- How it works: three pictures, three words -->
     <section class="lp-section" id="how">
       <div class="lp-head reveal">
-        <h2>From your shelf to someone's bag</h2>
-        <p>Three steps, and it all happens on campus.</p>
+        <h2>How it works</h2>
       </div>
-      <ol class="lp-steps">
+      <ol class="lp-steps lp-steps-visual">
         <li class="lp-step reveal" style="--d: 0">
-          <span class="lp-step-n">1</span>
+          <span class="lp-step-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h3l2-3h8l2 3h3v12H3z"></path><circle cx="12" cy="13.5" r="3.5"></circle></svg></span>
           <h3>List it</h3>
-          <p>Snap the front and back, choose lend, swap or donate, and your book is live for everyone nearby.</p>
+          <p>Snap the front and back.</p>
         </li>
         <li class="lp-step reveal" style="--d: 1">
-          <span class="lp-step-n">2</span>
-          <h3>Request it</h3>
-          <p>Search by course code or title, check the photos, and send a request with a pickup note.</p>
+          <span class="lp-step-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16" y2="16"></line></svg></span>
+          <h3>Find it</h3>
+          <p>Search by course or title.</p>
         </li>
         <li class="lp-step reveal" style="--d: 2">
-          <span class="lp-step-n">3</span>
-          <h3>Meet and hand over</h3>
-          <p>Agree on a spot in the chat, meet up, and both confirm the handover when it's done.</p>
+          <span class="lp-step-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h11v8H8l-4 3z"></path><path d="M18 10h2v8l-3-2h-6v-2"></path></svg></span>
+          <h3>Meet up</h3>
+          <p>Chat, meet and hand it over.</p>
         </li>
       </ol>
-    </section>
 
-    <div class="lp-marquee" aria-label="Categories you can share">
-      <div class="lp-marquee-track">
-        <span>Primary (Class 1-5)</span><span>Lower Secondary (Class 6-8)</span><span>Secondary (9-10)</span><span>Higher Secondary (Class 11-12)</span><span>Science, Tech &amp; Engineering</span><span>Business &amp; Economics</span><span>Humanities &amp; Arts</span><span>Medicine &amp; Health</span><span>Lab gear &amp; equipment</span><span>Stationery &amp; supplies</span>
-        <span aria-hidden="true">Primary (Class 1-5)</span><span aria-hidden="true">Lower Secondary (Class 6-8)</span><span aria-hidden="true">Secondary (9-10)</span><span aria-hidden="true">Higher Secondary (Class 11-12)</span><span aria-hidden="true">Science, Tech &amp; Engineering</span><span aria-hidden="true">Business &amp; Economics</span><span aria-hidden="true">Humanities &amp; Arts</span><span aria-hidden="true">Medicine &amp; Health</span><span aria-hidden="true">Lab gear &amp; equipment</span><span aria-hidden="true">Stationery &amp; supplies</span>
+      <div class="lp-modes-row reveal">
+        <div class="lp-mode-tile lend">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h14l-4-4"></path><path d="M20 15H6l4 4"></path></svg>
+          <strong>Lend</strong><span>Borrow and return</span>
+        </div>
+        <div class="lp-mode-tile swap">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l-3-3"></path><path d="M17 20V4l3 3"></path></svg>
+          <strong>Swap</strong><span>Book for book</span>
+        </div>
+        <div class="lp-mode-tile donate">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"></path></svg>
+          <strong>Donate</strong><span>Give it for free</span>
+        </div>
       </div>
-    </div>
+    </section>
 
     <!-- Students and organizations -->
     <section class="lp-section">
       <div class="lp-split" id="students">
         <figure class="lp-photo reveal">
-          <img data-parallax="0.08" src="{{ url_for('static', filename='img/library-student.jpg') }}" alt="A student studying at a long library table between tall bookshelves" loading="lazy" />
-          <figcaption>For students</figcaption>
+          <img data-parallax="0.08" src="{{ url_for('static', filename='img/students-books.jpg') }}" alt="A student carrying a stack of textbooks" loading="lazy" />
         </figure>
         <div class="reveal" style="--d: 1">
-          <span class="lp-eyebrow-chip">Students</span>
-          <h2>Find this semester's books before the first class</h2>
-          <p>Browse what students near you are sharing, or post what you need and let someone who has it reply with photos.</p>
-          <ul class="lp-list">
-            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>Filter by course code, condition and exchange type</li>
-            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>Four-angle photos, so you know what you're getting</li>
-            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>A pickup chat for every request</li>
-          </ul>
-          <button type="button" class="lp-btn-dark" onclick="openAuth('register', 'Student')">Create a student account <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+          <h2>For students</h2>
+          <p>Get this semester's books from someone who's done with them.</p>
+          <a class="lp-btn-dark" href="/browse">Browse books <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
         </div>
       </div>
 
       <div class="lp-split flip" id="organizations">
         <figure class="lp-photo reveal">
-          <img data-parallax="0.08" src="{{ url_for('static', filename='img/book-fair.jpg') }}" alt="Tables covered in donated books at a school book fair" loading="lazy" />
-          <figcaption>For organizations</figcaption>
+          <img data-parallax="0.08" src="{{ url_for('static', filename='img/book-drive.jpg') }}" alt="People choosing from tables of donated books" loading="lazy" />
         </figure>
         <div class="reveal" style="--d: 1">
-          <span class="lp-eyebrow-chip">Organizations</span>
-          <h2>Run relief drives that students can answer</h2>
-          <p>Publish what a school or shelter needs, by age group. Students pledge supplies and bring them to your drop-off point.</p>
-          <ul class="lp-list">
-            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>Drives with needed supplies and live progress</li>
-            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>Every pledge gets a reference code</li>
-            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>Verify drop-offs and export your records</li>
-          </ul>
+          <h2>For organizations</h2>
+          <p>Run book drives. Students pledge, you collect.</p>
           <button type="button" class="lp-btn-dark" onclick="openAuth('register', 'Organization')">Register your organization <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
         </div>
       </div>
@@ -246,7 +246,7 @@
     <!-- Closing band -->
     <section class="lp-band">
       <h2 class="reveal">Your old textbooks have another semester in them.</h2>
-      <button type="button" class="lp-btn-light reveal" style="--d: 1" onclick="openAuth('register')">Get started <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+      <button type="button" class="lp-btn-light reveal" style="--d: 1" onclick="openAuth('register')">Create an account <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
     </section>
 
     <footer class="lp-footer">
@@ -380,9 +380,7 @@
               required
               placeholder="example@gmail.com"
             />
-            <small id="reg-domain-hint" class="field-helper-note">
-              Students may use public domains (gmail.com, yahoo.com, outlook.com) or university domains (.edu, .edu.np).
-            </small>
+            <small id="reg-domain-hint" class="field-helper-note">Any email works for students.</small>
           </div>
 
           <!-- Student-Only Date of Birth (dd/mm/yyyy) Field (Hidden for Organizations) -->
@@ -420,12 +418,11 @@
               required
               maxlength="17"
               autocomplete="tel"
-              placeholder="(+977) 9848262163"
+              inputmode="numeric"
+              placeholder="98XXXXXXXX"
               oninput="enforceNepaliPhoneInput(this)"
             />
-            <small class="field-helper-note">
-              Format: Optional (+977) prefix followed by exactly 10 digits (e.g. (+977) 9848262163).
-            </small>
+            <small class="field-helper-note">10 digits, e.g. 9848262163</small>
           </div>
 
           <div class="form-group">
@@ -454,8 +451,15 @@
     </div>
   </div>
 
+  <script src="{{ url_for('static', filename='js/field-checks.js') }}?v=70"></script>
   <script>
     let selectedLoginRole = 'Student';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      FieldChecks.attach(document.getElementById('login-email'), FieldChecks.email);
+      FieldChecks.attach(document.getElementById('reg-email'), FieldChecks.email);
+      FieldChecks.attach(document.getElementById('reg-phone'), FieldChecks.phone);
+    });
 
     const NEPALI_PHONE_CLIENT_REGEX = /^(?:\(\+977\)\s*|\+977[\s\-]?)?([0-9]{10})$/;
     const DOB_CLIENT_REGEX = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/([0-9]{4})$/;
@@ -485,6 +489,7 @@
       if (regPhone) regPhone.value = '';
       if (regPw) regPw.value = '';
       if (regRole) regRole.value = 'Student';
+      if (window.FieldChecks) FieldChecks.clear([loginEmail, regEmail, regPhone]);
 
       handleRegisterRoleChange();
     }
@@ -559,8 +564,7 @@
 
       if (role === 'Organization') {
         emailInput.placeholder = 'contact@abc.org';
-        hint.textContent =
-          'Organizations must register using an official domain ending in .org (e.g. contact@abc.org).';
+        hint.textContent = 'Use your organization email ending in .org';
         hint.style.color = 'var(--pen)';
         if (dobGroup) dobGroup.classList.add('hidden');
         if (dobInput) {
@@ -569,8 +573,7 @@
         }
       } else {
         emailInput.placeholder = 'example@gmail.com';
-        hint.textContent =
-          'Students may use public domains (gmail.com, yahoo.com, outlook.com) or university domains (.edu, .edu.np).';
+        hint.textContent = 'Any email works for students.';
         hint.style.color = 'var(--ink-3)';
         if (dobGroup) dobGroup.classList.remove('hidden');
         if (dobInput) {
@@ -679,6 +682,7 @@
 
     async function handleLogin(event) {
       event.preventDefault();
+      if (!FieldChecks.runAll([[document.getElementById('login-email'), FieldChecks.email]])) return;
       const btn = document.getElementById('login-submit-btn');
       btn.disabled = true;
       btn.textContent = 'Signing in...';
@@ -700,7 +704,7 @@
         if (!res.ok) {
           throw new Error(data.error || 'Unable to sign in.');
         }
-        window.location.href = '/';
+        window.location.href = '/' + safeNextHash();
       } catch (err) {
         showAuthAlert(err.message, true);
         btn.disabled = false;
@@ -716,6 +720,11 @@
       const dob = document.getElementById('reg-dob').value.trim();
       const phone = document.getElementById('reg-phone').value.trim();
       const password = document.getElementById('reg-password').value;
+
+      if (!FieldChecks.runAll([
+        [document.getElementById('reg-email'), FieldChecks.email],
+        [document.getElementById('reg-phone'), FieldChecks.phone]
+      ])) return;
 
       if (role === 'Organization') {
         const domainPart = email.includes('@') ? email.split('@')[1].trim().toLowerCase() : '';
@@ -957,8 +966,20 @@
       }
     });
 
-    // Reopen the drawer for someone who just logged out
+    // Where to go after signing in: only in-app pages like "#/item-details/4"
+    function safeNextHash() {
+      const next = new URLSearchParams(window.location.search).get('next') || '';
+      return /^#\/[a-z-]+(\/[0-9]+)?$/.test(next) ? next : '';
+    }
+
+    // Reopen the drawer for someone who just logged out, or who came from
+    // the browse page with ?auth=login / ?auth=register
     window.addEventListener('pageshow', () => {
+      const wanted = new URLSearchParams(window.location.search).get('auth');
+      if (wanted === 'login' || wanted === 'register') {
+        openAuth(wanted);
+        return;
+      }
       const email = document.getElementById('login-email');
       if (email && email.value) openAuth('login');
     });

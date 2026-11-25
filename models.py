@@ -102,6 +102,18 @@ class User(db.Model):
             return parts[0][:2].upper()
         return (parts[0][0] + parts[-1][0]).upper()
 
+    def to_public_dict(self) -> dict:
+        """What other people may see about a user: no email, phone or birthday."""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'first_name': self.first_name,
+            'initials': self.initials,
+            'role': self.normalized_role,
+            'university': self.university if self.university is not None else '',
+            'completed_exchanges': self.completed_exchanges or 0,
+        }
+
     def to_dict(self) -> dict:
         dob_formatted = ''
         dob_iso = ''
@@ -195,7 +207,7 @@ class ResourceItem(db.Model):
             'is_available': self.is_available,
             'is_hidden': bool(self.is_hidden),
             'owner_id': self.owner_id,
-            'owner': self.owner.to_dict() if self.owner else None,
+            'owner': self.owner.to_public_dict() if self.owner else None,
             'pending_requests_count': pending_count,
             'created_at': self.created_at.strftime('%b %d, %Y') if self.created_at else ''
         }

@@ -52,6 +52,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initCategoryComboboxes();
   syncUserHeaderAndComposer();
+  if (window.FieldChecks) {
+    FieldChecks.attach(document.getElementById('prof-email'), FieldChecks.email);
+    FieldChecks.attach(document.getElementById('prof-phone'), FieldChecks.phone);
+  }
 
   // Close category dropdowns when clicking outside
   document.addEventListener('click', (e) => {
@@ -60,16 +64,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  if (currentUser && currentUser.role === 'Admin') {
-    navigateTo('admin-overview');
-  } else if (currentUser) {
-    navigateTo('browse');
+  const isGuest = !currentUser || currentUser.role === 'Guest';
+  if (!isGuest && currentUser.role !== 'Admin') {
     loadAllRequests();
-    if (currentUser.role === 'Student') {
-      loadFeedWorkspace();
-    }
+  }
+  if (!restoreRoute()) {
+    navigateTo(defaultViewForUser(), { replaceRoute: true });
   }
 });
+
+function isGuestUser() {
+  return !currentUser || currentUser.role === 'Guest';
+}
+
+// Sends a visitor to sign in, then brings them back to the page they were on.
+function goToAuth(mode = 'login') {
+  const back = (window.location.hash || '').startsWith('#/') ? window.location.hash : '#/browse';
+  window.location.href = `/?auth=${encodeURIComponent(mode)}&next=${encodeURIComponent(back)}`;
+  return false;
+}
 
 function getFirstName(userObj) {
   if (!userObj) return 'Student';
@@ -194,9 +207,105 @@ function closeMobileSidebar() {
   document.body.style.overflow = '';
 }
 
-function navigateTo(viewName) {
+// --------------------------------------------------------------------------
+// ROUTER: every page has its own address (#/feed, #/item-details/4), so a
+// refresh stays on the same page and the Back button steps back one page.
+// --------------------------------------------------------------------------
+function routeHashFor(view, param = null) {
+  const hasParam = param !== null && param !== undefined && param !== '';
+  return `#/${view}${hasParam ? '/' + encodeURIComponent(param) : ''}`;
+}
+
+function setRoute(view, param = null, replace = false) {
+  const hash = routeHashFor(view, param);
+  if (window.location.hash === hash) return;
+  try {
+    if (replace) {
+      history.replaceState(null, '', hash);
+    } else {
+      history.pushState(null, '', hash);
+    }
+  } catch (e) {
+    // Some embedded browsers block history changes; the app still works without them.
+  }
+}
+
+function parseRoute() {
+  const match = (window.location.hash || '').match(/^#\/([a-z-]+)(?:\/([^/?#]+))?$/);
+  if (!match) return null;
+  return { view: match[1], param: match[2] ? decodeURIComponent(match[2]) : null };
+}
+
+function closeTransientOverlays() {
+  document.querySelectorAll('.modal-backdrop:not(.hidden), .modal-overlay:not(.hidden)').forEach(el => {
+    if (el.id !== 'toast') el.classList.add('hidden');
+  });
+  pendingConfirmCallback = null;
+}
+
+// Opens the page named in the address bar. Returns false if there is none
+// (or this account can't see it), so the caller can show the home page.
+function restoreRoute() {
+  const route = parseRoute();
+  if (!route) return false;
+  const { view, param } = route;
+  if (isGuestUser() && view !== 'browse' && view !== 'item-details') return false;
+  const id = param !== null ? parseInt(param, 10) : null;
+  const hasId = Number.isInteger(id) && id > 0;
+
+  switch (view) {
+    case 'item-details':
+      if (!hasId) return false;
+      openItemDetails(id);
+      return true;
+    case 'request-details':
+      if (!hasId || !currentUser || currentUser.role === 'Guest') return false;
+      openRequestDetails(id);
+      return true;
+    case 'org-record-broadcast':
+      if (!hasId || !currentUser || currentUser.role === 'Guest') return false;
+      openOrgRecordPage(id);
+      return true;
+    case 'org-broadcast-records':
+      if (!hasId || !document.getElementById('view-org-broadcast-records')) return false;
+      openOrgBroadcastRecordsPage(id);
+      return true;
+    case 'org-create-broadcast':
+      if (!document.getElementById('view-org-create-broadcast') || !currentUser || currentUser.role !== 'Organization') return false;
+      if (hasId) openOrgEditBroadcast(id); else openOrgBroadcastModal();
+      return true;
+    case 'add-resource':
+      if (!document.getElementById('view-add-resource') || !currentUser || currentUser.role === 'Guest') return false;
+      if (hasId) openEditResourceView(id); else openAddResourceView();
+      return true;
+    default: {
+      if (view === 'org-broadcasts' && currentUser && currentUser.role === 'Student') return false;
+      const section = document.getElementById(`view-${view === 'admin-feed' ? 'feed' : view}`);
+      if (!section) return false;
+      navigateTo(view, { route: false });
+      return true;
+    }
+  }
+}
+
+window.addEventListener('popstate', () => {
+  closeTransientOverlays();
+  if (!restoreRoute()) {
+    navigateTo(defaultViewForUser(), { replaceRoute: true });
+  }
+});
+
+function defaultViewForUser() {
+  if (currentUser && currentUser.role === 'Admin') return 'admin-overview';
+  return 'browse';
+}
+
+function navigateTo(viewName, opts = {}) {
   closeMobileSidebar();
   currentView = viewName;
+  if (opts.route !== false) {
+    setRoute(viewName, opts.param ?? null, Boolean(opts.replaceRoute));
+  }
 
   document.querySelectorAll('.view-section').forEach(sec => {
     sec.classList.add('hidden');
@@ -210,9 +319,12 @@ function navigateTo(viewName) {
     'browse': 'nav-browse',
     'feed': (currentUser && currentUser.role === 'Admin') ? 'nav-admin-feed' : 'nav-feed',
     'org-broadcasts': 'nav-org-broadcasts',
-    'org-create-broadcast': 'nav-org-broadcasts',
-    'org-record-broadcast': (currentUser && currentUser.role === 'Organization') ? 'nav-org-broadcasts' : 'nav-feed',
-    'org-broadcast-records': 'nav-org-broadcasts',
+    'org-my-broadcasts': 'nav-org-my-broadcasts',
+    'org-create-broadcast': 'nav-org-my-broadcasts',
+    'org-record-broadcast': (currentUser && currentUser.role === 'Organization')
+      ? ((activeRecordBroadcast && activeRecordBroadcast.org_id === currentUser.id) ? 'nav-org-my-broadcasts' : 'nav-org-broadcasts')
+      : 'nav-feed',
+    'org-broadcast-records': 'nav-org-my-broadcasts',
     'my-contributions': 'nav-my-contributions',
     'my-listings': 'nav-my-listings',
     'add-resource': 'nav-my-listings',
@@ -242,7 +354,7 @@ function navigateTo(viewName) {
   // Trigger contextual data fetch
   if (viewName === 'browse') {
     loadBrowseItems();
-  } else if (viewName === 'org-broadcasts') {
+  } else if (viewName === 'org-broadcasts' || viewName === 'org-my-broadcasts') {
     loadOrgBroadcasts();
   } else if (viewName === 'org-create-broadcast') {
     initOrgCreateBroadcastView();
@@ -586,9 +698,12 @@ async function openItemDetails(itemId, returnView = null) {
 
     renderItemDetails(item);
 
+    currentView = 'item-details';
+    setRoute('item-details', itemId);
     document.querySelectorAll('.view-section').forEach(sec => sec.classList.add('hidden'));
     const section = document.getElementById('view-item-details');
     if (section) section.classList.remove('hidden');
+    window.scrollTo({ top: 0 });
   } catch (err) {
     console.error('Error opening item details:', err);
   }
@@ -643,6 +758,16 @@ function renderItemDetails(item) {
         <button type="button" class="btn-danger" onclick="confirmDeleteItem(${item.id})">
           Delete Listing
         </button>
+      </div>
+    `;
+  } else if (isGuestUser()) {
+    actionAreaHTML = `
+      <div class="request-compose-box guest-request-box">
+        <p>Sign in to request this ${escapeHtml((item.exchange_type || 'item').toLowerCase())} and chat with ${escapeHtml(owner.first_name || owner.name || 'the owner')}.</p>
+        <div class="detail-actions-row">
+          <a class="btn-primary" href="/?auth=login" onclick="return goToAuth('login')">Sign in to request</a>
+          <a class="btn-outline" href="/?auth=register" onclick="return goToAuth('register')">Create account</a>
+        </div>
       </div>
     `;
   } else if (!item.is_available) {
@@ -811,7 +936,7 @@ function ensureFeedSyncTimer() {
   feedSyncTimer = setInterval(() => {
     if (currentView === 'feed' || currentView === 'admin-feed') {
       loadFeedWorkspace(true);
-    } else if (currentView === 'org-broadcasts') {
+    } else if (currentView === 'org-broadcasts' || currentView === 'org-my-broadcasts') {
       loadOrgBroadcasts(true);
     }
   }, 2500);
@@ -863,7 +988,7 @@ async function loadFeedWorkspace(isSilent = false) {
             <span class="text-muted">${escapeHtml(post.created_at)}</span>
           </div>
           <h3 class="feed-card-title">${escapeHtml(post.title)}</h3>
-          <p class="feed-card-desc">${escapeHtml(post.description || 'No additional details specified.')}</p>
+          ${post.description ? `<details class="broadcast-details feed-post-details"><summary>Details</summary><p class="feed-card-desc">${escapeHtml(post.description)}</p></details>` : ''}
           <div class="feed-card-footer">
             <div class="feed-poster-meta">
               <span class="avatar-circle">${escapeHtml(post.student_initials || 'ST')}</span>
@@ -892,9 +1017,96 @@ async function loadFeedWorkspace(isSilent = false) {
     }).join('');
 
     container.innerHTML = orgCardsHtml + studentCardsHtml;
+    renderFeedAside(orgBroadcasts, feedRequestsList);
   } catch (err) {
     if (!isSilent) console.error('Error loading feed workspace:', err);
   }
+}
+
+// --------------------------------------------------------------------------
+// FEED SIDE PANEL: your activity, most-needed supplies, how it works
+// --------------------------------------------------------------------------
+let cachedMyPledgeCount = null;
+
+async function refreshMyPledgeCount() {
+  try {
+    const res = await fetch('/api/user/contributions');
+    if (!res.ok) return;
+    const data = await res.json();
+    cachedMyPledgeCount = (data.contributions || []).filter(c => c.status !== 'cancelled').length;
+    const el = document.getElementById('aside-stat-pledges');
+    if (el) el.textContent = cachedMyPledgeCount;
+  } catch (e) { /* the panel still works without this number */ }
+}
+
+function renderFeedAside(orgBroadcasts, posts) {
+  const aside = document.getElementById('feed-aside');
+  if (!aside) return;
+  const isAdmin = currentUser && currentUser.role === 'Admin';
+  const myId = currentUser ? currentUser.id : null;
+
+  // Top open supplies across all active drives, most needed first
+  const needs = [];
+  (orgBroadcasts || []).filter(b => b.is_active).forEach(b => {
+    (b.items || []).forEach(it => {
+      const left = Math.max(0, (it.quantity_needed || 0) - (it.quantity_secured || 0));
+      if (left > 0) needs.push({ b, it, left, pct: it.quantity_needed ? Math.round((it.quantity_secured / it.quantity_needed) * 100) : 0 });
+    });
+  });
+  needs.sort((a, b) => b.left - a.left);
+  const topNeeds = needs.slice(0, 5);
+
+  const needsHtml = topNeeds.length ? topNeeds.map(n => `
+      <li>
+        <button type="button" class="aside-need" ${isAdmin ? 'disabled' : `onclick="openOrgRecordPage(${n.b.id}, 'feed')"`} title="${escapeAttr(n.b.title)}">
+          <span class="aside-need-text">
+            <strong>${escapeHtml(n.it.item_name)}</strong>
+            <small>${escapeHtml(n.b.org_name || 'Organization')}</small>
+          </span>
+          <span class="aside-need-left">${n.left}<small>left</small></span>
+          <span class="aside-need-bar"><i style="width: ${Math.min(100, n.pct)}%"></i></span>
+        </button>
+      </li>`).join('') : '<li class="aside-empty">Every drive is fully supplied.</li>';
+
+  let statsHtml;
+  if (isAdmin) {
+    statsHtml = `
+      <div class="aside-stats">
+        <div class="aside-stat"><span>${(posts || []).length}</span><small>Student posts</small></div>
+        <div class="aside-stat"><span>${(orgBroadcasts || []).filter(b => b.is_active).length}</span><small>Active drives</small></div>
+      </div>`;
+  } else {
+    const myPosts = (posts || []).filter(p => p.student_id === myId).length;
+    const myReqs = (myRequestsList || []).length;
+    statsHtml = `
+      <div class="aside-stats three">
+        <button type="button" class="aside-stat" onclick="openFeedCreateModal()"><span>${myPosts}</span><small>My posts</small></button>
+        <button type="button" class="aside-stat" onclick="navigateTo('my-requests')"><span>${myReqs}</span><small>Requests</small></button>
+        <button type="button" class="aside-stat" onclick="navigateTo('my-contributions')"><span id="aside-stat-pledges">${cachedMyPledgeCount === null ? '–' : cachedMyPledgeCount}</span><small>Pledges</small></button>
+      </div>`;
+  }
+
+  aside.innerHTML = `
+    <section class="aside-card">
+      <h3>${isAdmin ? 'Feed at a glance' : 'Your activity'}</h3>
+      ${statsHtml}
+    </section>
+    <section class="aside-card">
+      <h3>Most needed now</h3>
+      <ul class="aside-needs">${needsHtml}</ul>
+    </section>
+    ${isAdmin ? '' : `
+    <section class="aside-card aside-how">
+      <h3>How the feed works</h3>
+      <ol>
+        <li><span class="aside-how-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span>Post what you need</li>
+        <li><span class="aside-how-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h3l2-3h8l2 3h3v12H3z"></path><circle cx="12" cy="13.5" r="3.5"></circle></svg></span>Someone replies with photos</li>
+        <li><span class="aside-how-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h14l-4-4"></path><path d="M20 15H6l4 4"></path></svg></span>Meet and hand it over</li>
+      </ol>
+      <button type="button" class="btn-primary btn-sm btn-full" onclick="openFeedCreateModal()">Post a request</button>
+    </section>`}
+  `;
+  if (!isAdmin && cachedMyPledgeCount === null) refreshMyPledgeCount();
 }
 
 function confirmDeleteFeedRequest(feedId, title) {
@@ -1286,7 +1498,7 @@ async function openEditResourceView(itemId) {
       }
     });
 
-    navigateTo('add-resource');
+    navigateTo('add-resource', { param: itemId });
   } catch (err) {
     console.error('Error loading item for edit:', err);
   }
@@ -1495,9 +1707,12 @@ async function openRequestDetails(reqId) {
 
     renderRequestDetails(req);
 
+    currentView = 'request-details';
+    setRoute('request-details', reqId);
     document.querySelectorAll('.view-section').forEach(sec => sec.classList.add('hidden'));
     const section = document.getElementById('view-request-details');
     if (section) section.classList.remove('hidden');
+    window.scrollTo({ top: 0 });
   } catch (err) {
     console.error('Error opening request details:', err);
   }
@@ -1796,10 +2011,10 @@ async function handleUpdateProfile(event) {
   const phone = document.getElementById('prof-phone').value.trim();
   const university = document.getElementById('prof-university').value.trim();
 
-  if (!NEPALI_PHONE_DASH_REGEX.test(phone)) {
-    showToast('Invalid phone number. Enter optional (+977) prefix followed by 10 digits.', true);
-    return;
-  }
+  if (!FieldChecks.runAll([
+    [document.getElementById('prof-email'), FieldChecks.email],
+    [document.getElementById('prof-phone'), FieldChecks.phone]
+  ])) return;
 
   try {
     const res = await fetch('/api/profile/update', {
@@ -2539,11 +2754,16 @@ function openOrgBroadcastModal() {
   navigateTo('org-create-broadcast');
 }
 
+// Where an organization manages its own drives
+function myBroadcastsView() {
+  return currentUser && currentUser.role === 'Organization' ? 'org-my-broadcasts' : 'org-broadcasts';
+}
+
 function closeOrgBroadcastModal() {
   editingBroadcastId = null;
   const editIdInput = document.getElementById('org-broadcast-edit-id');
   if (editIdInput) editIdInput.value = '';
-  navigateTo('org-broadcasts');
+  navigateTo(myBroadcastsView());
 }
 
 function initOrgCreateBroadcastView() {
@@ -2633,7 +2853,7 @@ async function openOrgEditBroadcast(broadcastId) {
   }
 
   renderSuggestionPills(selectedBroadcastMode);
-  navigateTo('org-create-broadcast');
+  navigateTo('org-create-broadcast', { param: broadcastId });
 }
 
 function handleBroadcastModeChange(mode) {
@@ -3039,7 +3259,7 @@ async function loadOrgBroadcasts(isSilent = false) {
       if (myBroadcasts.length === 0) {
         myContainer.innerHTML = `
           <div class="empty-state" style="padding: 2rem 1.5rem; background: var(--surface-2); border: 1px dashed var(--line-2); border-radius: 8px; text-align: center;">
-            <p style="margin: 0; color: var(--ink-3); font-size: 0.9rem;">You haven't created any needs broadcasts yet. Click <strong>"Create Needs Broadcast"</strong> above to launch a relief drive.</p>
+            <p style="margin: 0; color: var(--ink-3); font-size: 0.9rem;">No drives yet. Use <strong>New broadcast</strong> to start one.</p>
           </div>
         `;
       } else {
@@ -3052,7 +3272,7 @@ async function loadOrgBroadcasts(isSilent = false) {
       if (communityBroadcasts.length === 0) {
         communityContainer.innerHTML = `
           <div class="empty-state" style="padding: 2rem 1.5rem; background: var(--surface-2); border: 1px dashed var(--line-2); border-radius: 8px; text-align: center;">
-            <p style="margin: 0; color: var(--ink-3); font-size: 0.9rem;">No active broadcasts from partner campus organizations at this time.</p>
+            <p style="margin: 0; color: var(--ink-3); font-size: 0.9rem;">No drives from other organizations right now.</p>
           </div>
         `;
       } else {
@@ -3095,130 +3315,75 @@ function getUrgencyBadgeHtml(mode) {
 function renderOrgBroadcastCard(b, isOrgPortalView = true, isMineOverride = null) {
   const urgencyClass = `urgency-${b.urgency_mode || 'crisis_shelter'}`;
   const isMine = isMineOverride !== null ? isMineOverride : (currentUser && b.org_id === currentUser.id);
-  const isAdmin = currentUser && currentUser.role === 'Admin';
   const pct = Math.min(100, Math.round(b.fulfillment_percentage || 0));
+  const items = b.items || [];
+  const openItems = items.filter(it => it.quantity_secured < it.quantity_needed);
+  const doneCount = items.length - openItems.length;
 
-
-  const itemsHtml = (b.items || []).map(item => {
+  // Needed supplies as compact chips: name + how many are still needed
+  const supplyChips = items.map(item => {
     const isFulfilled = item.quantity_secured >= item.quantity_needed;
     const remaining = Math.max(0, item.quantity_needed - item.quantity_secured);
+    const tip = `${item.age_bracket || 'All ages'}: ${item.quantity_secured} of ${item.quantity_needed} ${item.unit || ''}`.trim();
     return `
-      <div class="broadcast-item-card ${isFulfilled ? 'is-fulfilled' : ''}">
-        <div class="item-card-top">
-          <span class="item-bracket-tag" title="${escapeAttr(item.age_bracket || 'General')}">${escapeHtml(item.age_bracket || 'General')}</span>
-          <span class="item-progress-ratio ${isFulfilled ? 'fulfilled' : ''}">
-            ${item.quantity_secured} / ${item.quantity_needed}
-          </span>
-        </div>
-        <div class="item-card-name" title="${escapeAttr(item.item_name)}">
-          ${escapeHtml(item.item_name)}
-        </div>
-        <div class="item-card-bottom">
-          <span class="item-remaining-pill ${isFulfilled ? 'fulfilled' : ''}">
-            ${isFulfilled ? 'Completed' : `(${remaining} left)`}
-          </span>
-          ${!isFulfilled && item.quantity_pending ? `<span style="font-size: 0.72rem; font-weight: 700; color: var(--amber); background: var(--amber-wash); padding: 2px 6px; border-radius: 4px;" title="${item.quantity_pending} currently pledged and pending physical drop-off">${item.quantity_pending} pending</span>` : ''}
-          <span class="item-unit-tag">${escapeHtml(item.unit || 'units')}</span>
-        </div>
-      </div>
+      <li class="supply-chip ${isFulfilled ? 'is-done' : ''}" title="${escapeAttr(tip)}">
+        <span class="supply-chip-name">${escapeHtml(item.item_name)}</span>
+        <span class="supply-chip-count">${isFulfilled
+          ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg> Done'
+          : `${remaining} left`}</span>
+      </li>
     `;
   }).join('');
 
   return `
-    <article class="org-broadcast-card ${urgencyClass}" id="org-broadcast-card-${b.id}">
-      <!-- Header Row: Status badge left, timestamp right on same line -->
+    <article class="org-broadcast-card is-compact ${urgencyClass}" id="org-broadcast-card-${b.id}">
       <div class="org-broadcast-header-row">
         <div class="org-header-badges">
-          ${!isOrgPortalView ? '<span class="badge badge-important">IMPORTANT • Organization Broadcast</span>' : ''}
           ${getUrgencyBadgeHtml(b.urgency_mode)}
-          ${!b.is_active ? '<span class="badge badge-neutral">Closed / Completed</span>' : ''}
+          ${!b.is_active ? '<span class="badge badge-neutral">Closed</span>' : ''}
         </div>
-        <span class="broadcast-timestamp">${escapeHtml(b.created_at)}</span>
+        <span class="broadcast-org-line">
+          ${escapeHtml(b.org_name)}
+          <svg class="verified-tick" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-label="Verified organization"><path d="M12 2l2.4 2.2 3.2-.4.9 3.1 2.9 1.5-1 3.1 1 3.1-2.9 1.5-.9 3.1-3.2-.4L12 22l-2.4-2.2-3.2.4-.9-3.1-2.9-1.5 1-3.1-1-3.1 2.9-1.5.9-3.1 3.2.4z"></path><path d="M8.5 12.5l2.3 2.3 4.7-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </span>
       </div>
 
-      <!-- Main Title -->
       <h3 class="org-broadcast-title">${escapeHtml(b.title)}</h3>
 
-      <!-- Organization Meta Row -->
-      <div class="org-broadcast-meta-row">
-        <span class="meta-org-name">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>
-          ${escapeHtml(b.org_name)}
-        </span>
-        <span class="badge badge-blue badge-verified">Verified Org</span>
-        ${b.beneficiary_count ? `<span class="meta-beneficiary-count">&bull; <strong>${b.beneficiary_count}</strong> Beneficiaries</span>` : ''}
+      <div class="compact-progress" title="${b.items_secured || 0} of ${b.items_needed || 0} items received${b.items_pending ? `, ${b.items_pending} pledged and on the way` : ''}">
+        <div class="fulfillment-progress-track"><div class="fulfillment-progress-fill" style="width: ${pct}%;"></div></div>
+        <span class="compact-progress-text"><strong>${pct}%</strong> ${b.items_secured || 0}/${b.items_needed || 0}</span>
       </div>
 
-      <!-- Concise Description -->
-      ${b.description ? `<p class="org-broadcast-desc">${escapeHtml(b.description)}</p>` : ''}
-
-      <!-- Structured 3-Column Logistics Metadata Row -->
-      <div class="org-logistics-grid">
-        <div class="logistics-col">
-          <span class="logistics-col-label">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            Access
-          </span>
-          <span class="logistics-col-value font-medium">${escapeHtml(b.road_condition || 'Motorable')}</span>
-        </div>
-        <div class="logistics-col">
-          <span class="logistics-col-label">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-            Relief Site
-          </span>
-          <span class="logistics-col-value" title="${escapeAttr(b.location)}">${escapeHtml(b.location)}</span>
-        </div>
-        <div class="logistics-col">
-          <span class="logistics-col-label">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"></path><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
-            Drop-Point
-          </span>
-          <span class="logistics-col-value font-medium" title="${escapeAttr(b.safe_drop_point)}">${escapeHtml(b.safe_drop_point)}</span>
-        </div>
+      <div class="supply-chips-head">
+        <span>Needed supplies</span>
+        <span>${doneCount}/${items.length} done</span>
       </div>
+      <ul class="supply-chips">${supplyChips}</ul>
 
-      <!-- Live Fulfillment Progress: Label and percentage neatly grouped -->
-      <div class="fulfillment-progress-wrapper">
-        <div class="fulfillment-progress-header">
-          <div class="fulfillment-label-group">
-            <span class="progress-title">Relief Fulfillment Progress:</span>
-            <span class="progress-counts">
-              <strong>${b.items_secured || 0}</strong> of <strong>${b.items_needed || 0}</strong> items secured
-              ${b.items_pending ? ` <span style="font-weight: 600; color: var(--amber);">(${b.items_pending} pending drop-off)</span>` : ''}
-            </span>
-          </div>
-          <span class="progress-percentage ${pct >= 100 ? 'text-success' : 'text-primary'}">${pct}%</span>
-        </div>
-        <div class="fulfillment-progress-track">
-          <div class="fulfillment-progress-fill" style="width: ${pct}%;"></div>
-        </div>
-      </div>
-
-      <!-- Needed Supplies Breakdown in Equal-Width 3-Column Grid -->
-      <div class="broadcast-supplies-section">
-        <div class="supplies-section-header">
-          <span>Needed Supplies &amp; Age-Bracket Breakdown</span>
-          <span class="supplies-stats">${(b.items || []).filter(i => i.quantity_secured >= i.quantity_needed).length} of ${(b.items || []).length} categories fulfilled</span>
-        </div>
-        <div class="broadcast-items-grid">
-          ${itemsHtml}
-        </div>
-      </div>
+      <details class="broadcast-details">
+        <summary>Details</summary>
+        ${b.description ? `<p class="org-broadcast-desc">${escapeHtml(b.description)}</p>` : ''}
+        <dl class="broadcast-details-grid">
+          <div><dt>Drop-off</dt><dd>${escapeHtml(b.safe_drop_point || '—')}</dd></div>
+          <div><dt>Site</dt><dd>${escapeHtml(b.location || '—')}</dd></div>
+          <div><dt>Access</dt><dd>${escapeHtml(b.road_condition || 'Motorable')}</dd></div>
+          ${b.beneficiary_count ? `<div><dt>People helped</dt><dd>${b.beneficiary_count}</dd></div>` : ''}
+        </dl>
+      </details>
 
       <!-- Card Action Footer -->
       <div class="org-broadcast-card-footer">
-        <div class="footer-meta-text">
-          ${b.is_active ? 'Active relief drive accepting community contributions' : 'Relief drive marked as closed'}
-        </div>
+        <div class="footer-meta-text">${escapeHtml(b.created_at || '')}</div>
         <div class="footer-actions">
           ${isOrgPortalView && (isMine || (currentUser && currentUser.role === 'Admin'))
             ? `
               <button type="button" class="btn-primary btn-sm" onclick="openOrgRecordPage(${b.id})" style="">
-                + Record Supplies
+                + Record supplies
               </button>
               <button type="button" class="btn-outline btn-sm" onclick="openOrgBroadcastRecordsPage(${b.id})" style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                <span>Records &amp; Pledges</span>
+                <span>Pledges</span>
                 ${b.pending_pledges_count ? `<span style="background: var(--amber-wash); color: var(--amber); font-size: 0.72rem; font-weight: 800; padding: 1px 6px; border-radius: 9999px;">${b.pending_pledges_count}</span>` : ''}
               </button>
               <button type="button" class="btn-outline btn-sm" onclick="openOrgEditBroadcast(${b.id})">
@@ -3236,18 +3401,18 @@ function renderOrgBroadcastCard(b, isOrgPortalView = true, isMineOverride = null
                 ? `
                   <button type="button" class="btn-primary btn-sm" onclick="openOrgRecordPage(${b.id})" style="display: flex; align-items: center; gap: 0.45rem; font-weight: 600;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    <span>Contribute / Pledge Supplies</span>
+                    <span>Pledge supplies</span>
                   </button>
                 `
-                : `<span class="badge badge-neutral">Drive Completed</span>`
+                : `<span class="badge badge-neutral">Drive closed</span>`
               : b.is_active
                 ? `
                   <button type="button" class="btn-primary btn-sm" onclick="openOrgRecordPage(${b.id}, 'feed')" style="display: flex; align-items: center; gap: 0.45rem; font-weight: 600;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>
-                    <span>Help Fulfill / Donate Item</span>
+                    <span>Pledge supplies</span>
                   </button>
                 `
-                : `<span class="badge badge-neutral">Drive Completed</span>`
+                : `<span class="badge badge-neutral">Drive closed</span>`
           }
         </div>
       </div>
@@ -3318,7 +3483,9 @@ async function openOrgRecordPage(broadcastId, returnView = null) {
   }
 
   activeRecordBroadcast = b;
-  recordPageReturnView = returnView || (currentView === 'feed' || currentView === 'admin-feed' ? 'feed' : 'org-broadcasts');
+  recordPageReturnView = returnView
+    || (currentView === 'feed' || currentView === 'admin-feed' ? 'feed'
+      : (currentUser && b.org_id === currentUser.id ? 'org-my-broadcasts' : 'org-broadcasts'));
 
   const isOwner = currentUser && b.org_id === currentUser.id;
 
@@ -3476,7 +3643,7 @@ async function openOrgRecordPage(broadcastId, returnView = null) {
   }
 
   updateBatchRecordSummary();
-  navigateTo('org-record-broadcast');
+  navigateTo('org-record-broadcast', { param: broadcastId });
 }
 
 function handleBackFromRecordPage() {
@@ -3585,9 +3752,10 @@ async function handleSubmitBatchRecord() {
     if (!isOwner) {
       // Contributor pledge registered -> Show Pledge Confirmation Pass with Ref Code
       showToast('Pledge recorded! Reference Code: ' + (data.reference_code || ''));
+      cachedMyPledgeCount = null;
       openPledgePassModal(data.reference_code, activeRecordBroadcast, data.contribution || { items: itemsToUpdate });
       activeRecordBroadcast = null;
-      if (returnView === 'org-broadcasts') {
+      if (returnView === 'org-broadcasts' || returnView === 'org-my-broadcasts') {
         loadOrgBroadcasts();
       } else if (returnView === 'feed' || returnView === 'admin-feed') {
         loadFeedWorkspace(true);
@@ -3600,7 +3768,7 @@ async function handleSubmitBatchRecord() {
     showToast('Offline supplies logged & verified into permanent ledger.');
     activeRecordBroadcast = null;
 
-    if (returnView === 'org-broadcasts') {
+    if (returnView === 'org-broadcasts' || returnView === 'org-my-broadcasts') {
       await loadOrgBroadcasts();
     } else if (returnView === 'feed' || returnView === 'admin-feed') {
       await loadFeedWorkspace(true);
@@ -3691,7 +3859,7 @@ async function openOrgBroadcastRecordsPage(broadcastId) {
     renderRecordsSummary(currentRecordsBroadcast);
     renderRecordsTabsData();
 
-    navigateTo('org-broadcast-records');
+    navigateTo('org-broadcast-records', { param: broadcastId });
   } catch (err) {
     console.error('Error opening broadcast records page:', err);
     showToast(err.message, true);
@@ -3701,7 +3869,7 @@ async function openOrgBroadcastRecordsPage(broadcastId) {
 function handleBackFromRecordsLedger() {
   currentRecordsBroadcast = null;
   currentRecordsList = [];
-  navigateTo('org-broadcasts');
+  navigateTo(myBroadcastsView());
 }
 
 function switchRecordsTab(tab) {
@@ -3786,8 +3954,8 @@ function renderRecordsTabsData() {
       pendingContainer.innerHTML = pending.map(c => `
         <div class="create-broadcast-card" style="margin-bottom: 1rem; border-left: 4px solid var(--hl-edge); text-align: left;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-            <div>
-              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px;">
+            <div style="flex: 1 1 260px; min-width: 0;">
+              <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 4px;">
                 <span style="font-family: var(--font-ui); font-variant-numeric: tabular-nums;  font-weight: 800; font-size: 1rem; color: var(--amber); background: var(--amber-wash); padding: 2px 8px; border-radius: 6px;">${escapeHtml(c.reference_code)}</span>
                 <span class="badge ${c.contributor_type === 'organization' ? 'badge-amber' : 'badge-blue'}">${c.contributor_type === 'organization' ? 'Organization' : 'Student'}</span>
                 <span class="badge badge-amber">Pending Drop-off</span>
@@ -3989,29 +4157,34 @@ async function submitVerifyContribution() {
 }
 
 function confirmCancelContribution(contribId, refCode) {
-  openConfirmModal(
-    `Are you sure you want to mark pledge ${refCode} as cancelled / no-show? This will release the pledged supplies count.`,
-    async () => {
-      try {
-        const res = await fetch(`/api/org/contributions/${contribId}/cancel`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: 'Marked as cancelled / no-show.' })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to cancel pledge.');
-        showToast(`Pledge ${refCode} has been cancelled.`);
-        if (currentRecordsBroadcast) {
-          await openOrgBroadcastRecordsPage(currentRecordsBroadcast.id);
-        }
-        loadOrgBroadcasts();
-        broadcastFeedSync();
-      } catch (err) {
-        console.error('Error cancelling contribution:', err);
-        showToast(err.message, true);
+  const isOrgSide = currentView === 'org-broadcast-records';
+  const message = isOrgSide
+    ? `Mark pledge ${refCode} as cancelled? The pledged supplies go back to "still needed".`
+    : `Cancel your pledge ${refCode}? The organization will stop expecting these supplies.`;
+  openConfirmModal(message, 'Cancel pledge', async () => {
+    try {
+      const res = await fetch(`/api/org/contributions/${contribId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: isOrgSide ? 'Marked as cancelled / no-show by the organization.' : 'Cancelled by the contributor.' })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not cancel this pledge.');
+      showToast(`Pledge ${refCode} cancelled.`);
+      cachedMyPledgeCount = null;
+      if (currentView === 'org-broadcast-records' && currentRecordsBroadcast) {
+        await openOrgBroadcastRecordsPage(currentRecordsBroadcast.id);
       }
+      if (currentView === 'my-contributions') {
+        await loadMyContributions();
+      }
+      loadOrgBroadcasts(true);
+      broadcastFeedSync();
+    } catch (err) {
+      console.error('Error cancelling contribution:', err);
+      showToast(err.message, true);
     }
-  );
+  });
 }
 
 // --------------------------------------------------------------------------
@@ -4049,20 +4222,20 @@ async function loadMyContributions() {
       const isVerified = c.status === 'verified_received';
       const isPending = c.status === 'pending_dropoff';
       const badgeClass = isVerified ? 'badge-green' : (isPending ? 'badge-amber' : 'badge-neutral');
-      const badgeText = isVerified ? 'Verified Received' : (isPending ? 'Pending Drop-off' : 'Cancelled');
+      const badgeText = isVerified ? 'Received' : (isPending ? 'Waiting for drop-off' : 'Cancelled');
 
       return `
         <div class="create-broadcast-card" style="margin-bottom: 1.25rem; border-left: 4px solid ${isVerified ? 'var(--green)' : (isPending ? 'var(--hl-edge)' : 'var(--ink-3)')}; text-align: left;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-            <div>
-              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px;">
+            <div style="flex: 1 1 260px; min-width: 0;">
+              <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 4px;">
                 <span style="font-family: var(--font-ui); font-variant-numeric: tabular-nums;  font-weight: 800; font-size: 1.05rem; color: ${isVerified ? 'var(--green)' : 'var(--amber)'}; background: ${isVerified ? 'var(--green-wash)' : 'var(--amber-wash)'}; padding: 2px 8px; border-radius: 6px;">${escapeHtml(c.reference_code)}</span>
                 <span class="badge ${badgeClass}">${badgeText}</span>
                 ${getUrgencyBadgeHtml(c.urgency_mode)}
               </div>
               <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--ink); margin: 0 0 2px 0;">${escapeHtml(c.broadcast_title || 'Relief Drive')}</h3>
               <div style="font-size: 0.84rem; color: var(--ink-2);">
-                Organized by <strong>${escapeHtml(c.org_name || 'Organization')}</strong> &bull; Pledged on ${escapeHtml(c.created_at)}
+                <strong>${escapeHtml(c.org_name || 'Organization')}</strong>, pledged ${escapeHtml(c.created_at)}
               </div>
             </div>
             ${isPending ? `
@@ -4094,12 +4267,14 @@ async function loadMyContributions() {
 
           ${isVerified ? `
             <div style="font-size: 0.8rem; color: var(--green); font-weight: 600;">
-              Physically verified on ${escapeHtml(c.verified_at)} by ${escapeHtml(c.verified_by || 'Organization')}
+              Received on ${escapeHtml(c.verified_at)} by ${escapeHtml(c.verified_by || 'the organization')}
+            </div>
+          ` : isPending ? `
+            <div style="font-size: 0.78rem; color: var(--amber);">
+              Bring these to the drop-off point and show code <strong>${escapeHtml(c.reference_code)}</strong>.
             </div>
           ` : `
-            <div style="font-size: 0.78rem; color: var(--amber);">
-              Please bring items to the drop-off point and present reference code <strong>${escapeHtml(c.reference_code)}</strong> to complete verification.
-            </div>
+            <div style="font-size: 0.78rem; color: var(--ink-3);">This pledge was cancelled.</div>
           `}
         </div>
       `;
