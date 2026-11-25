@@ -18,7 +18,11 @@ import os
 import re
 import uuid
 import random
+import json
 import smtplib
+import urllib.request
+import urllib.error
+from html import escape as html_escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta, date
@@ -237,26 +241,28 @@ def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str
     it gracefully logs the recovery link to the server console and returns True,
     allowing local development and testing without hard crashes.
     """
-    mail_server = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+    mail_server = os.environ.get('MAIL_SERVER', 'smtp.gmail.com').strip()
     mail_port = int(os.environ.get('MAIL_PORT', 587))
     mail_username = os.environ.get('MAIL_USERNAME', '').strip()
     mail_password = os.environ.get('MAIL_PASSWORD', '').strip()
-    mail_sender = os.environ.get('MAIL_DEFAULT_SENDER', mail_username or 'no-reply@shareloop.io').strip()
+    brevo_api_key = os.environ.get('BREVO_API_KEY', '').strip()
+    mail_sender = os.environ.get('MAIL_DEFAULT_SENDER', '').strip() or (
+        mail_username if '@' in mail_username and 'smtp-brevo.com' not in mail_username else 'no-reply@shareloop.io'
+    )
+    use_brevo_api = bool(brevo_api_key)
+    use_smtp = bool(mail_username and mail_password)
 
-    print("\n" + "=" * 64, flush=True)
-    print(f"[PASSWORD RECOVERY] Email dispatched to: {to_email} ({recipient_name})", flush=True)
-    print(f"[RECOVERY URL]     {reset_url}", flush=True)
-    if not mail_username or not mail_password:
-        print("[SMTP NOTICE]     MAIL_USERNAME or MAIL_PASSWORD not configured in environment.", flush=True)
-        print("                  Configure Gmail App Password in your hosting environment variables to enable live email delivery.", flush=True)
-    else:
-        print(f"[SMTP CONNECT]    Connecting to {mail_server}:{mail_port} as {mail_username}...", flush=True)
-    print("=" * 64 + "\n", flush=True)
-
-    if not mail_username or not mail_password:
+    if not use_brevo_api and not use_smtp:
+        # No email provider configured (local development): print the link so it can be opened by hand.
+        print("[PASSWORD RECOVERY] No email provider configured (set BREVO_API_KEY, or MAIL_USERNAME + MAIL_PASSWORD).", flush=True)
+        print(f"[RECOVERY URL]     {reset_url}", flush=True)
         return True
 
+    print(f"[PASSWORD RECOVERY] Sending reset email to {to_email} via "
+          f"{'Brevo API' if use_brevo_api else f'SMTP {mail_server}:{mail_port}'} from {mail_sender}", flush=True)
+
     try:
+        recipient_name = html_escape(recipient_name or 'there')
         subject = "Reset Your ShareLoop Password"
         text_body = (
             f"Hello {recipient_name},\n\n"
@@ -313,6 +319,36 @@ def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str
 </body>
 </html>"""
 
+        if use_brevo_api:
+            # Brevo's HTTPS API: works on Vercel, where raw SMTP sockets can fail.
+            payload = json.dumps({
+                'sender': {'name': 'ShareLoop', 'email': mail_sender},
+                'to': [{'email': to_email}],
+                'subject': subject,
+                'htmlContent': html_body,
+                'textContent': text_body,
+            }).encode('utf-8')
+            api_request = urllib.request.Request(
+                'https://api.brevo.com/v3/smtp/email',
+                data=payload,
+                method='POST',
+                headers={
+                    'api-key': brevo_api_key,
+                    'accept': 'application/json',
+                    'content-type': 'application/json',
+                },
+            )
+            try:
+                with urllib.request.urlopen(api_request, timeout=15) as resp:
+                    body = resp.read().decode('utf-8', 'replace')
+                    print(f"[EMAIL DELIVERED] Brevo accepted the reset email for {to_email} "
+                          f"(HTTP {resp.status}) {body[:120]}", flush=True)
+                return True
+            except urllib.error.HTTPError as http_err:
+                detail = http_err.read().decode('utf-8', 'replace')[:300]
+                print(f"[EMAIL ERROR] Brevo API returned HTTP {http_err.code} for {to_email}: {detail}", flush=True)
+                return False
+
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = f"ShareLoop <{mail_sender}>"
@@ -321,15 +357,18 @@ def send_password_reset_email(to_email: str, recipient_name: str, reset_url: str
         msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
         msg.attach(MIMEText(html_body, 'html', 'utf-8'))
 
-        server = smtplib.SMTP(mail_server, mail_port, timeout=15)
-        server.starttls()
+        if mail_port == 465:
+            server = smtplib.SMTP_SSL(mail_server, mail_port, timeout=15)
+        else:
+            server = smtplib.SMTP(mail_server, mail_port, timeout=15)
+            server.starttls()
         server.login(mail_username, mail_password)
         server.sendmail(mail_sender, [to_email], msg.as_string())
         server.quit()
-        print(f"[SMTP DELIVERED] Successfully delivered reset email to {to_email}", flush=True)
+        print(f"[EMAIL DELIVERED] SMTP accepted the reset email for {to_email}", flush=True)
         return True
     except Exception as err:
-        print(f"[SMTP ERROR] Failed delivering email to {to_email}: {err}", flush=True)
+        print(f"[EMAIL ERROR] Failed delivering email to {to_email}: {err!r}", flush=True)
         return False
 
 
