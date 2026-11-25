@@ -1,27 +1,9 @@
-Photos in this folder are from Unsplash and used under the Unsplash License
-(free for commercial and non-commercial use, no attribution required).
-The number after each file is its Unsplash photo id: https://unsplash.com/photos/<id>
-or https://images.unsplash.com/photo-<id>
+All pictures in this folder are original illustrations drawn for ShareLoop as SVG
+(hand-written vector code, no photos or third-party artwork).
 
-Landing page and app
-  hero-share.jpg, hero-share-sm.jpg   students sharing a book at a table     1780742961135-7f6b965530fa
-  students-books.jpg                  student holding a stack of books        1503676382389-4809596d5290
-  book-drive.jpg                      people choosing from tables of books    1732652835004-efc80cb31d9d
-  books-spread.jpg                    books spread out at an outdoor market   1789728243444-cae3a79cd5ce
-  book-spines.jpg                     shelves of colourful book spines        1550399105-c4db5fb85c18
-
-Demo listing photos (books/)
-  os-front.jpg       books stacked by a computer              1672309558498-cfcc89afff25
-  os-back.jpg        open book on a table                     1720160644902-d447e3313b95
-  algo-front.jpg     book beside a laptop                     1484665739383-a1069a82d4be
-  algo-back.jpg      page of formulas                         1708011271935-3e109df56fe0
-  econ-front.jpg     finance book                             1574884280706-7342ca3d4231
-  econ-back.jpg      stack of business and economics books    1732304722020-be33345c00c3
-  calc-front.jpg     graphing calculator on notes             1648201188793-418f2b9b4b32
-  calc-back.jpg      formulas on a chalkboard                 1636466497217-26a8cbeaf0aa
-  labkit-front.jpg   breadboard and microcontroller           1631378297854-185cff6b0986
-  labkit-back.jpg    breadboard with wires                    1634452015397-ad0686a2ae2d
-  chem-front.jpg     molecular model                          1603126857599-f6e157fa2fe6
-  chem-back.jpg      stack of books                           1516979187457-637abb4f9353
-  kids-front.jpg     pile of story books                      1455884981818-54cb785db6fc
-  kids-back.jpg      two children reading                     1532789339108-2ebc484efbf1
+hero-share.svg        landing page: two students pass a book inside the ShareLoop loop
+students-books.svg    landing page, "For students": a student carrying books from a shelf
+book-drive.svg        landing page, "For organizations": a book drive with a donation box
+book-shelves.svg      closing banner and sidebar card: shelves of colourful books
+books/*.svg           demo listing pictures: an invented front and back cover per item
+                      (not copies of the real book covers)

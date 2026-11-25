@@ -959,7 +959,7 @@ img {
   justify-content: flex-end;
   background:
     linear-gradient(180deg, rgba(16, 21, 29, 0.35) 0%, rgba(16, 21, 29, 0.88) 100%),
-    url('../img/book-spines.jpg') center 50% / cover no-repeat;
+    url('../img/book-shelves.svg') center 40% / cover no-repeat;
   border: none;
 }
 
@@ -4808,7 +4808,7 @@ select.form-control {
   z-index: -1;
   background:
     linear-gradient(180deg, rgba(16, 21, 29, 0.35), rgba(16, 21, 29, 0.65)),
-    url('../img/books-spread.jpg') center 60% / cover no-repeat;
+    url('../img/book-shelves.svg') center 50% / cover no-repeat;
 }
 
 .lp-band h2 {
@@ -5115,18 +5115,22 @@ body.drawer-open {
   align-items: flex-start;
   justify-content: flex-end;
   text-align: left;
-  padding: 8rem clamp(1.25rem, 6vw, 6rem) clamp(5rem, 11vh, 8rem);
-  color: #FFFFFF;
+  padding: 8rem clamp(1.25rem, 6vw, 6rem) clamp(8rem, 22vh, 14rem);
+  justify-content: center;
+  color: var(--ink);
+  background: #E4EDF4;
 }
 
 .lp-hero-media img {
-  object-position: 62% 40%;
+  inset: 0;
+  height: 100%;
+  object-fit: cover;
+  object-position: 100% 100%;
+  animation: fadeIn 1.2s var(--ease-out) both;
 }
 
 .lp-hero-veil {
-  background:
-    linear-gradient(90deg, rgba(10, 14, 20, 0.72) 0%, rgba(10, 14, 20, 0.4) 36%, rgba(10, 14, 20, 0) 62%),
-    linear-gradient(0deg, rgba(10, 14, 20, 0.55) 0%, rgba(10, 14, 20, 0) 40%);
+  background: linear-gradient(90deg, rgba(233, 241, 247, 0.55) 0%, rgba(233, 241, 247, 0) 45%);
 }
 
 .lp-hero-content {
@@ -5135,24 +5139,30 @@ body.drawer-open {
 }
 
 .lp-hero .lp-title {
-  color: #FFFFFF;
-  font-size: clamp(2.6rem, 5.4vw, 5rem);
+  color: var(--ink);
+  font-size: clamp(2.4rem, 4.6vw, 4.4rem);
   max-width: 10.5em;
   text-wrap: balance;
 }
 
 .lp-hero .lp-sub {
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--ink-2);
   margin-bottom: 1.8rem;
 }
 
-.lp-hero .lp-btn-ghost {
+.lp-hero .lp-btn-light {
+  background: var(--ink);
   color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.lp-hero .lp-btn-ghost {
+  color: var(--ink);
+  border: 1px solid rgba(16, 21, 29, 0.25);
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .lp-hero .lp-btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: #FFFFFF;
 }
 
 .lp-float {
@@ -5161,15 +5171,16 @@ body.drawer-open {
 
 .lp-float-a {
   left: auto;
-  right: clamp(1.5rem, 5vw, 5rem);
-  top: 22%;
+  right: clamp(1.5rem, 4vw, 4rem);
+  top: 16%;
   bottom: auto;
 }
 
 .lp-float-b {
   width: auto;
-  right: clamp(9rem, 20vw, 20rem);
-  bottom: 22%;
+  right: auto;
+  left: clamp(1.25rem, 6vw, 6rem);
+  bottom: 9%;
 }
 
 .lp-float-c {
@@ -5361,8 +5372,15 @@ body.drawer-open {
     padding: 6.5rem 1.25rem 6.5rem;
     align-items: stretch;
   }
+  .lp-hero {
+    justify-content: flex-start;
+    padding-top: 7.5rem;
+  }
+  .lp-hero-media img {
+    object-position: 78% 100%;
+  }
   .lp-hero-veil {
-    background: linear-gradient(0deg, rgba(10, 14, 20, 0.85) 0%, rgba(10, 14, 20, 0.45) 55%, rgba(10, 14, 20, 0.15) 100%);
+    background: linear-gradient(180deg, rgba(233, 241, 247, 0.92) 0%, rgba(233, 241, 247, 0.8) 34%, rgba(233, 241, 247, 0) 44%);
   }
   .lp-float-c {
     display: none;

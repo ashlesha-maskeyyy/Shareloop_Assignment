@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-label="A student carries a stack of books away from a bookshelf, with a message that the request was accepted">
+<rect width="1200" height="900" fill="#E6F1E4"/>
+<circle cx="980" cy="200" r="170" fill="#D3E9CE"/>
+<rect y="760" width="1200" height="140" fill="#CFE3CB"/>
+<rect x="96" y="120" width="428" height="660" rx="10" fill="#A97B52"/>
+<rect x="110" y="134" width="400" height="632" rx="6" fill="#6E4A2F"/>
+<rect x="110" y="300" width="400" height="14" rx="3" fill="#8A5E3B"/>
+<rect x="130" y="163" width="27" height="137" rx="3" fill="#E2A54B"/>
+<rect x="135" y="177" width="17" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="160" y="168" width="23" height="132" rx="3" fill="#C23A2C"/>
+<rect x="165" y="182" width="13" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="186" y="200" width="22" height="100" rx="3" fill="#2E6B39"/>
+<rect x="211" y="161" width="29" height="139" rx="3" fill="#0F5E57"/>
+<rect x="216" y="175" width="19" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="243" y="277" width="121" height="23" rx="3" fill="#C23A2C"/>
+<rect x="367" y="198" width="22" height="102" rx="3" fill="#DCE7F0"/>
+<rect x="392" y="200" width="21" height="100" rx="3" fill="#0F5E57"/>
+<rect x="416" y="189" width="23" height="111" rx="3" fill="#DCE7F0"/>
+<rect x="421" y="203" width="13" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="442" y="198" width="21" height="102" rx="3" fill="#8BC97C"/>
+<rect x="466" y="174" width="19" height="126" rx="3" fill="#2E6B39"/>
+<rect x="110" y="470" width="400" height="14" rx="3" fill="#8A5E3B"/>
+<rect x="130" y="335" width="28" height="135" rx="3" fill="#C23A2C"/>
+<rect x="135" y="349" width="18" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="161" y="360" width="19" height="110" rx="3" fill="#B9650F"/>
+<rect x="183" y="352" width="24" height="118" rx="3" fill="#5B3C8F"/>
+<rect x="188" y="366" width="14" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="210" y="351" width="18" height="119" rx="3" fill="#DCE7F0"/>
+<rect x="231" y="344" width="24" height="126" rx="3" fill="#245A8E"/>
+<rect x="236" y="358" width="14" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="258" y="347" width="30" height="123" rx="3" fill="#E2A54B"/>
+<rect x="263" y="361" width="20" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="291" y="357" width="24" height="113" rx="3" fill="#245A8E"/>
+<rect x="296" y="371" width="14" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="318" y="343" width="20" height="127" rx="3" fill="#2E6B39"/>
+<rect x="341" y="334" width="24" height="136" rx="3" fill="#0F5E57"/>
+<rect x="346" y="348" width="14" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="368" y="450" width="108" height="20" rx="3" fill="#245A8E"/>
+<rect x="110" y="640" width="400" height="14" rx="3" fill="#8A5E3B"/>
+<rect x="130" y="515" width="20" height="125" rx="3" fill="#2E6B39"/>
+<rect x="153" y="508" width="23" height="132" rx="3" fill="#C23A2C"/>
+<rect x="158" y="522" width="13" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="179" y="530" width="22" height="110" rx="3" fill="#1F3A5F"/>
+<rect x="204" y="534" width="19" height="106" rx="3" fill="#B9650F"/>
+<rect x="226" y="528" width="30" height="112" rx="3" fill="#5B3C8F"/>
+<rect x="231" y="542" width="20" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="259" y="622" width="130" height="18" rx="3" fill="#0F5E57"/>
+<rect x="392" y="516" width="28" height="124" rx="3" fill="#2E6B39"/>
+<rect x="397" y="530" width="18" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="423" y="530" width="27" height="110" rx="3" fill="#E2A54B"/>
+<rect x="428" y="544" width="17" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="453" y="528" width="27" height="112" rx="3" fill="#8BC97C"/>
+<rect x="458" y="542" width="17" height="4" rx="2" fill="#FFFFFF" opacity="0.55"/>
+<rect x="110" y="740" width="400" height="26" fill="#8A5E3B"/>
+<ellipse cx="760" cy="790" rx="110" ry="14" fill="#2E6B39" opacity="0.18"/>
+<!-- student -->
+<path d="M742 610 L732 772" stroke="#2A3346" stroke-width="32" stroke-linecap="round"/>
+<path d="M778 610 L792 772" stroke="#2A3346" stroke-width="32" stroke-linecap="round"/>
+<ellipse cx="724" cy="782" rx="26" ry="11" fill="#10151D"/><ellipse cx="800" cy="782" rx="26" ry="11" fill="#10151D"/>
+<rect x="690" y="470" width="40" height="118" rx="16" fill="#C23A2C"/>
+<path d="M716 474 Q760 448 804 474 L816 626 Q760 642 704 626z" fill="#E2A54B"/>
+<rect x="748" y="440" width="26" height="28" rx="9" fill="#9C6644"/>
+<circle cx="761" cy="410" r="42" fill="#9C6644"/>
+<path d="M720 412 Q716 362 764 364 Q806 366 804 404 Q790 384 762 388 Q736 392 730 420 Q724 426 720 412z" fill="#1E1A1A"/>
+<circle cx="782" cy="414" r="4" fill="#1E1A1A"/>
+<path d="M778 434 Q788 440 796 432" stroke="#5E3A24" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+<!-- books held against the chest, both arms wrapped round them -->
+<path d="M724 492 Q714 548 742 576" stroke="#C98A2E" stroke-width="26" stroke-linecap="round" fill="none"/>
+<rect x="728" y="502" width="112" height="26" rx="4" fill="#245A8E"/>
+<rect x="734" y="528" width="104" height="26" rx="4" fill="#2E6B39"/>
+<rect x="724" y="554" width="116" height="26" rx="4" fill="#C23A2C"/>
+<rect x="740" y="510" width="40" height="5" rx="2.5" fill="#DCE7F0"/>
+<rect x="746" y="536" width="30" height="5" rx="2.5" fill="#8BC97C"/>
+<path d="M798 488 Q850 506 846 556" stroke="#E2A54B" stroke-width="26" stroke-linecap="round" fill="none"/>
+<circle cx="840" cy="566" r="14" fill="#9C6644"/>
+<!-- message bubble -->
+<g transform="translate(840 150)">
+  <rect width="290" height="120" rx="26" fill="#FFFFFF"/>
+  <path d="M60 120 L48 150 L92 120z" fill="#FFFFFF"/>
+  <circle cx="56" cy="60" r="26" fill="#2E6B39"/>
+  <path d="M44 60 L53 69 L70 50" stroke="#FFFFFF" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="100" y="38" width="150" height="14" rx="7" fill="#10151D"/>
+  <rect x="100" y="66" width="110" height="12" rx="6" fill="#A6B0BF"/>
+</g>
+</svg>

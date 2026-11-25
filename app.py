@@ -2649,9 +2649,9 @@ def seed_database():
                 condition='New / Like New',
                 exchange_type='Donate',
                 description='Hardcover illustrated edition used for Early Childhood Education literacy practicum. Available as a free donation for students or partner organizations.',
-                image_url='/static/img/books/kids-front.jpg',
-                front_cover_path='/static/img/books/kids-front.jpg',
-                back_cover_path='/static/img/books/kids-back.jpg',
+                image_url='/static/img/books/kids-front.svg',
+                front_cover_path='/static/img/books/kids-front.svg',
+                back_cover_path='/static/img/books/kids-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=first_owner.id
@@ -2779,9 +2779,9 @@ def seed_database():
                 condition='Good',
                 exchange_type='Lend',
                 description='Hardcover copy of the tenth edition of Operating System Concepts. Lightly used over one academic quarter.',
-                image_url='/static/img/books/os-front.jpg',
-                front_cover_path='/static/img/books/os-front.jpg',
-                back_cover_path='/static/img/books/os-back.jpg',
+                image_url='/static/img/books/os-front.svg',
+                front_cover_path='/static/img/books/os-front.svg',
+                back_cover_path='/static/img/books/os-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=rishi.id
@@ -2794,9 +2794,9 @@ def seed_database():
                 condition='New / Like New',
                 exchange_type='Lend',
                 description='Pristine hardcover copy of CLRS 4th edition. Essential reference for Design and Analysis of Algorithms.',
-                image_url='/static/img/books/algo-front.jpg',
-                front_cover_path='/static/img/books/algo-front.jpg',
-                back_cover_path='/static/img/books/algo-back.jpg',
+                image_url='/static/img/books/algo-front.svg',
+                front_cover_path='/static/img/books/algo-front.svg',
+                back_cover_path='/static/img/books/algo-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=bijay.id
@@ -2809,9 +2809,9 @@ def seed_database():
                 condition='Good',
                 exchange_type='Donate',
                 description='Complete macro and microeconomics textbook. Happy to donate to any student or campus organization.',
-                image_url='/static/img/books/econ-front.jpg',
-                front_cover_path='/static/img/books/econ-front.jpg',
-                back_cover_path='/static/img/books/econ-back.jpg',
+                image_url='/static/img/books/econ-front.svg',
+                front_cover_path='/static/img/books/econ-front.svg',
+                back_cover_path='/static/img/books/econ-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=ajay.id
@@ -2824,9 +2824,9 @@ def seed_database():
                 condition='Fair',
                 exchange_type='Donate',
                 description='Covers single and multivariable calculus. Minor shelf wear on corners, all pages intact.',
-                image_url='/static/img/books/calc-front.jpg',
-                front_cover_path='/static/img/books/calc-front.jpg',
-                back_cover_path='/static/img/books/calc-back.jpg',
+                image_url='/static/img/books/calc-front.svg',
+                front_cover_path='/static/img/books/calc-front.svg',
+                back_cover_path='/static/img/books/calc-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=shibu.id
@@ -2839,9 +2839,9 @@ def seed_database():
                 condition='New / Like New',
                 exchange_type='Lend',
                 description='Complete portable USB oscilloscope, multimeter leads, and solderless breadboard jumper kit.',
-                image_url='/static/img/books/labkit-front.jpg',
-                front_cover_path='/static/img/books/labkit-front.jpg',
-                back_cover_path='/static/img/books/labkit-back.jpg',
+                image_url='/static/img/books/labkit-front.svg',
+                front_cover_path='/static/img/books/labkit-front.svg',
+                back_cover_path='/static/img/books/labkit-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=rajesh.id
@@ -2854,9 +2854,9 @@ def seed_database():
                 condition='Good',
                 exchange_type='Swap',
                 description='Includes both the 8th edition textbook and the 240-piece 3D organic stereochemistry molecular modeling kit.',
-                image_url='/static/img/books/chem-front.jpg',
-                front_cover_path='/static/img/books/chem-front.jpg',
-                back_cover_path='/static/img/books/chem-back.jpg',
+                image_url='/static/img/books/chem-front.svg',
+                front_cover_path='/static/img/books/chem-front.svg',
+                back_cover_path='/static/img/books/chem-back.svg',
                 is_available=True,
                 is_hidden=False,
                 owner_id=rajesh.id
@@ -3057,10 +3057,10 @@ def seed_org_broadcasts():
 
 
 
-# Demo listings first shipped with generic stock photos hot-linked from Unsplash.
-# They now use photos that match each item, stored in public/static/img/books/.
-# Only listings that still have an Unsplash photo are touched, so photos people
-# uploaded themselves are never replaced.
+# Demo listings first shipped with stock photos hot-linked from Unsplash, then with
+# bundled photos. They now use illustrated covers in public/static/img/books/*.svg.
+# Only listings that still show one of those stock pictures are touched, so photos
+# people uploaded themselves are never replaced.
 SEED_LISTING_PHOTOS = [
     ('Operating System Concepts', 'os'),
     ('Introduction to Algorithms', 'algo'),
@@ -3077,13 +3077,19 @@ def refresh_seed_listing_photos():
     for title_start, key in SEED_LISTING_PHOTOS:
         items = ResourceItem.query.filter(ResourceItem.title.like(f'{title_start}%')).all()
         for item in items:
-            if not (item.front_cover_path or '').startswith('https://images.unsplash.com/'):
+            front_now = item.front_cover_path or ''
+            # Unsplash photos (first version) or the bundled .jpg photos (second version)
+            if not (front_now.startswith('https://images.unsplash.com/') or front_now.startswith('/static/img/books/')):
                 continue
-            front = f'/static/img/books/{key}-front.jpg'
+            front = f'/static/img/books/{key}-front.svg'
+            back = f'/static/img/books/{key}-back.svg'
+            if front_now == front and item.back_cover_path == back:
+                continue
             item.front_cover_path = front
             item.image_url = front
-            if not item.back_cover_path or item.back_cover_path.startswith('https://images.unsplash.com/'):
-                item.back_cover_path = f'/static/img/books/{key}-back.jpg'
+            back_now = item.back_cover_path or ''
+            if not back_now or back_now.startswith('https://images.unsplash.com/') or back_now.startswith('/static/img/books/'):
+                item.back_cover_path = back
             changed += 1
     if changed:
         db.session.commit()

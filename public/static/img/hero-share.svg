@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img" aria-labelledby="t">
+  <title id="t">Two students pass a book to each other inside a big green loop, with a campus on the hills behind them</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E9F1F7"/>
+      <stop offset="1" stop-color="#DCE7F0"/>
+    </linearGradient>
+    <style>
+      .orbit { transform-origin: 1130px 470px; animation: orbit 48s linear infinite; }
+      .bob { animation: bob 5s ease-in-out infinite; transform-origin: 1133px 590px; }
+      .cloud { animation: drift 60s linear infinite alternate; }
+      @keyframes orbit { to { transform: rotate(360deg); } }
+      @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+      @keyframes drift { to { transform: translateX(60px); } }
+      @media (prefers-reduced-motion: reduce) { .orbit, .bob, .cloud { animation: none; } }
+    </style>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <circle cx="1490" cy="140" r="58" fill="#FFF3D6"/>
+  <g class="cloud" fill="#FFFFFF" opacity="0.9">
+    <g transform="translate(700 150)"><circle cx="40" cy="40" r="30"/><circle cx="80" cy="28" r="38"/><circle cx="124" cy="44" r="26"/><rect x="40" y="40" width="84" height="30" rx="15"/></g>
+    <g transform="translate(1440 250) scale(0.7)"><circle cx="40" cy="40" r="30"/><circle cx="80" cy="28" r="38"/><circle cx="124" cy="44" r="26"/><rect x="40" y="40" width="84" height="30" rx="15"/></g>
+    <g transform="translate(320 90) scale(0.55)" opacity="0.7"><circle cx="40" cy="40" r="30"/><circle cx="80" cy="28" r="38"/><circle cx="124" cy="44" r="26"/><rect x="40" y="40" width="84" height="30" rx="15"/></g>
+  </g>
+
+  <!-- Hills -->
+  <path d="M0 610 Q300 520 620 590 T1180 560 T1600 540 V900 H0z" fill="#D3E6CF"/>
+
+  <!-- Campus on the far hill -->
+  <g fill="#C4D5E2">
+    <rect x="1150" y="470" width="230" height="92"/>
+    <path d="M1138 474 L1265 420 L1392 474z"/>
+    <rect x="1250" y="372" width="30" height="56"/>
+    <path d="M1244 376 L1265 350 L1286 376z"/>
+  </g>
+  <g fill="#ADC2D3">
+    <rect x="1172" y="490" width="14" height="60" rx="3"/>
+    <rect x="1206" y="490" width="14" height="60" rx="3"/>
+    <rect x="1240" y="490" width="14" height="60" rx="3"/>
+    <rect x="1276" y="490" width="14" height="60" rx="3"/>
+    <rect x="1310" y="490" width="14" height="60" rx="3"/>
+    <rect x="1344" y="490" width="14" height="60" rx="3"/>
+    <circle cx="1265" cy="394" r="8"/>
+  </g>
+
+  <path d="M0 700 C260 640 560 720 880 668 S1380 630 1600 680 V900 H0z" fill="#A9D19F"/>
+
+  <!-- The loop (echoes the ShareLoop mark: an ink arc and a green arc) -->
+  <path d="M867 347 A290 290 0 0 1 1393 347" fill="none" stroke="#10151D" stroke-width="16" stroke-linecap="round"/>
+  <path d="M1405 316 L1393 347 L1361 337" fill="none" stroke="#10151D" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1393 593 A290 290 0 0 1 867 593" fill="none" stroke="#2E6B39" stroke-width="16" stroke-linecap="round"/>
+  <path d="M855 624 L867 593 L899 603" fill="none" stroke="#2E6B39" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Books travelling round the loop -->
+  <g class="orbit">
+    <g transform="translate(1130 180) rotate(-12)"><rect x="-24" y="-17" width="48" height="34" rx="4" fill="#245A8E"/><rect x="-24" y="-17" width="8" height="34" rx="3" fill="#173E63"/><rect x="-10" y="-8" width="26" height="4" rx="2" fill="#E9F1F7"/></g>
+    <g transform="translate(1420 470) rotate(80)"><rect x="-24" y="-17" width="48" height="34" rx="4" fill="#E2A54B"/><rect x="-24" y="-17" width="8" height="34" rx="3" fill="#B9650F"/><rect x="-10" y="-8" width="26" height="4" rx="2" fill="#FFF6DF"/></g>
+    <g transform="translate(840 470) rotate(-100)"><rect x="-24" y="-17" width="48" height="34" rx="4" fill="#C23A2C"/><rect x="-24" y="-17" width="8" height="34" rx="3" fill="#8E2A20"/><rect x="-10" y="-8" width="26" height="4" rx="2" fill="#FBE8E6"/></g>
+    <g transform="translate(1335 675) rotate(140)"><rect x="-24" y="-17" width="48" height="34" rx="4" fill="#8BC97C"/><rect x="-24" y="-17" width="8" height="34" rx="3" fill="#2E6B39"/><rect x="-10" y="-8" width="26" height="4" rx="2" fill="#FFFFFF"/></g>
+  </g>
+
+  <!-- Ground -->
+  <path d="M0 790 C420 748 900 806 1600 756 V900 H0z" fill="#8BC97C"/>
+  <path d="M0 862 C500 836 1000 872 1600 840 V900 H0z" fill="#6FAE63"/>
+  <ellipse cx="968" cy="796" rx="78" ry="11" fill="#2E6B39" opacity="0.25"/>
+  <ellipse cx="1296" cy="792" rx="74" ry="11" fill="#2E6B39" opacity="0.25"/>
+
+  <!-- Tree -->
+  <rect x="1508" y="600" width="16" height="170" rx="6" fill="#7A5236"/>
+  <circle cx="1516" cy="580" r="62" fill="#2E6B39"/>
+  <circle cx="1478" cy="620" r="42" fill="#3E8049"/>
+  <circle cx="1556" cy="616" r="40" fill="#3E8049"/>
+
+  <!-- Student 1: blue hoodie, backpack, handing over the book -->
+  <g>
+    <path d="M950 640 L942 778" stroke="#2A3346" stroke-width="28" stroke-linecap="round"/>
+    <path d="M978 640 L994 778" stroke="#2A3346" stroke-width="28" stroke-linecap="round"/>
+    <ellipse cx="936" cy="786" rx="22" ry="10" fill="#10151D"/>
+    <ellipse cx="1002" cy="786" rx="22" ry="10" fill="#10151D"/>
+    <rect x="896" y="522" width="36" height="104" rx="14" fill="#B9650F"/>
+    <path d="M936 540 Q926 590 930 632" stroke="#1D4A75" stroke-width="24" stroke-linecap="round" fill="none"/>
+    <path d="M922 524 Q962 500 1000 524 L1010 654 Q964 668 918 654z" fill="#245A8E"/>
+    <path d="M944 516 Q962 532 980 516" stroke="#1D4A75" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <rect x="952" y="496" width="22" height="24" rx="8" fill="#B47A55"/>
+    <circle cx="964" cy="470" r="36" fill="#C68B64"/>
+    <path d="M928 468 Q926 428 966 430 Q1000 432 1000 458 Q980 448 958 452 Q944 470 940 492 Q928 486 928 468z" fill="#1E1A1A"/>
+    <circle cx="984" cy="472" r="3.6" fill="#1E1A1A"/>
+    <path d="M980 488 Q988 492 994 486" stroke="#8A5236" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M996 540 Q1040 568 1090 590" stroke="#245A8E" stroke-width="24" stroke-linecap="round" fill="none"/>
+    <circle cx="1098" cy="592" r="12" fill="#C68B64"/>
+  </g>
+
+  <!-- The book being passed -->
+  <g class="bob">
+    <rect x="1102" y="568" width="64" height="46" rx="5" fill="#2E6B39"/>
+    <rect x="1102" y="568" width="10" height="46" rx="4" fill="#22522B"/>
+    <rect x="1118" y="580" width="36" height="5" rx="2.5" fill="#E6F1E4"/>
+    <rect x="1118" y="590" width="24" height="4" rx="2" fill="#8BC97C"/>
+  </g>
+
+  <!-- Student 2: green top, long braid, receiving the book -->
+  <g>
+    <path d="M1286 640 L1276 774" stroke="#3A3F4C" stroke-width="28" stroke-linecap="round"/>
+    <path d="M1312 640 L1324 774" stroke="#3A3F4C" stroke-width="28" stroke-linecap="round"/>
+    <ellipse cx="1268" cy="782" rx="22" ry="10" fill="#10151D"/>
+    <ellipse cx="1332" cy="782" rx="22" ry="10" fill="#10151D"/>
+    <path d="M1320 540 Q1332 590 1328 630" stroke="#22522B" stroke-width="24" stroke-linecap="round" fill="none"/>
+    <path d="M1262 526 Q1298 504 1334 526 L1344 654 Q1298 668 1252 654z" fill="#2E6B39"/>
+    <rect x="1286" y="498" width="22" height="24" rx="8" fill="#8D5A3B"/>
+    <path d="M1324 470 Q1346 520 1340 586 Q1336 600 1328 590 Q1330 540 1312 500z" fill="#1E1A1A"/>
+    <circle cx="1338" cy="594" r="7" fill="#E2A54B"/>
+    <circle cx="1296" cy="472" r="36" fill="#9C6644"/>
+    <path d="M1262 472 Q1258 430 1300 432 Q1334 434 1334 470 Q1326 448 1296 450 Q1276 452 1268 470 Q1266 478 1262 472z" fill="#1E1A1A"/>
+    <circle cx="1276" cy="474" r="3.6" fill="#1E1A1A"/>
+    <path d="M1270 490 Q1262 494 1258 488" stroke="#5E3A24" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M1266 542 Q1222 566 1176 588" stroke="#2E6B39" stroke-width="24" stroke-linecap="round" fill="none"/>
+    <circle cx="1168" cy="590" r="12" fill="#9C6644"/>
+  </g>
+
+  <!-- A stack of books waiting on the grass -->
+  <g>
+    <rect x="832" y="748" width="70" height="16" rx="3" fill="#245A8E"/>
+    <rect x="838" y="732" width="62" height="16" rx="3" fill="#E2A54B"/>
+    <rect x="828" y="716" width="66" height="16" rx="3" fill="#C23A2C"/>
+    <rect x="842" y="704" width="44" height="12" rx="3" fill="#8BC97C"/>
+  </g>
+</svg>

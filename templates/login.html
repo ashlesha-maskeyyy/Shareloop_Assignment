@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='brand/shareloop-app-icon.svg') }}" />
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='brand/apple-touch-icon.png') }}" />
   <link rel="preload" href="{{ url_for('static', filename='fonts/plus-jakarta-sans-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" as="image" href="{{ url_for('static', filename='img/hero-share.jpg') }}" imagesrcset="{{ url_for('static', filename='img/hero-share-sm.jpg') }} 1100w, {{ url_for('static', filename='img/hero-share.jpg') }} 2200w" imagesizes="100vw" />
+  <link rel="preload" as="image" href="{{ url_for('static', filename='img/hero-share.svg') }}" type="image/svg+xml" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=70" />
 </head>
 <body class="auth-body">
@@ -131,10 +131,8 @@
       <div class="lp-hero-media">
         <img
           id="lp-hero-img"
-          src="{{ url_for('static', filename='img/hero-share.jpg') }}"
-          srcset="{{ url_for('static', filename='img/hero-share-sm.jpg') }} 1100w, {{ url_for('static', filename='img/hero-share.jpg') }} 2200w"
-          sizes="100vw"
-          alt="Students in school uniforms laughing together over a shared book at a table"
+          src="{{ url_for('static', filename='img/hero-share.svg') }}"
+          alt="Illustration: two students pass a book to each other inside a big green loop, with a campus on the hills behind them"
           fetchpriority="high"
         />
       </div>
@@ -151,7 +149,7 @@
 
       <!-- Floating glimpses of the product -->
       <div class="lp-float lp-float-a" aria-hidden="true">
-        <img class="lp-float-photo" src="{{ url_for('static', filename='img/books/calc-front.jpg') }}" alt="" />
+        <img class="lp-float-photo" src="{{ url_for('static', filename='img/books/calc-front.svg') }}" alt="" />
         <span class="lp-float-body">
           <strong>Calculus, 8th Ed.</strong>
           <span class="pill">Lend</span>
@@ -169,11 +167,6 @@
         </span>
         <span class="lp-tick"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
       </div>
-      <div class="lp-float lp-float-c" aria-hidden="true">
-        <img class="lp-loop-mark" src="{{ url_for('static', filename='brand/shareloop-mark-white.svg') }}" alt="" />
-        <span class="lp-modes"><i class="m-lend">Lend</i><i class="m-swap">Swap</i><i class="m-donate">Donate</i></span>
-      </div>
-
       <a href="#how" class="lp-scroll" aria-label="Scroll to how it works">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
       </a>
@@ -222,7 +215,7 @@
     <section class="lp-section">
       <div class="lp-split" id="students">
         <figure class="lp-photo reveal">
-          <img data-parallax="0.08" src="{{ url_for('static', filename='img/students-books.jpg') }}" alt="A student carrying a stack of textbooks" loading="lazy" />
+          <img data-parallax="0.08" src="{{ url_for('static', filename='img/students-books.svg') }}" alt="Illustration: a student carries a stack of books away from a bookshelf" loading="lazy" />
         </figure>
         <div class="reveal" style="--d: 1">
           <h2>For students</h2>
@@ -233,7 +226,7 @@
 
       <div class="lp-split flip" id="organizations">
         <figure class="lp-photo reveal">
-          <img data-parallax="0.08" src="{{ url_for('static', filename='img/book-drive.jpg') }}" alt="People choosing from tables of donated books" loading="lazy" />
+          <img data-parallax="0.08" src="{{ url_for('static', filename='img/book-drive.svg') }}" alt="Illustration: a student drops a book into a donation box at a book drive" loading="lazy" />
         </figure>
         <div class="reveal" style="--d: 1">
           <h2>For organizations</h2>
@@ -254,7 +247,6 @@
         <img src="{{ url_for('static', filename='brand/shareloop-logo.svg') }}" alt="ShareLoop" />
         © 2026 ShareLoop University Exchange. Built with Python Flask and SQLAlchemy.
       </span>
-      <span>Photos from <a href="https://unsplash.com" rel="noopener">Unsplash</a></span>
     </footer>
   </main>
 
